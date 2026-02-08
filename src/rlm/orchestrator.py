@@ -105,7 +105,7 @@ class RLMOrchestrator:
                 if self.config.verbose:
                     self.console.print(
                         f"[dim]EXPLORE [{explore_steps}]: "
-                        f"{action.operation.op}({action.operation.args})[/dim]"
+                        f"{action.operation.op.value}({action.operation.args})[/dim]"
                     )
 
                 try:
