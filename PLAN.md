@@ -400,15 +400,15 @@ def clear():
 ### Success Criteria:
 
 #### Automated Verification:
-- [ ] `pip install -e ".[dev]"` succeeds
-- [ ] `rlm --version` prints `0.1.0`
-- [ ] `rlm run --help` shows all options
-- [ ] `python -m pytest tests/` runs (even if no tests yet)
-- [ ] `ruff check src/` passes
-- [ ] `mypy src/rlm/types.py src/rlm/config.py` passes
+- [x] `pip install -e ".[dev]"` succeeds
+- [x] `rlm --version` prints `0.1.0`
+- [x] `rlm run --help` shows all options
+- [x] `python -m pytest tests/` runs (even if no tests yet)
+- [x] `ruff check src/` passes
+- [x] `mypy src/rlm/types.py src/rlm/config.py` passes
 
 #### Manual Verification:
-- [ ] `rlm run -q "test" -c RESEARCH.md` runs without error (prints placeholder)
+- [x] `rlm run -q "test" -c RESEARCH.md` runs without error (prints placeholder)
 
 ---
 
@@ -602,10 +602,10 @@ class LightweightEvaluator:
 ### Success Criteria:
 
 #### Automated Verification:
-- [ ] `pytest tests/test_ops.py` — all text operations produce correct results
-- [ ] `pytest tests/test_evaluator.py` — lightweight evaluator handles all explore ops
-- [ ] `ruff check src/rlm/ops/ src/rlm/evaluator/` passes
-- [ ] `mypy src/rlm/ops/ src/rlm/evaluator/` passes
+- [x] `pytest tests/test_ops.py` — all text operations produce correct results
+- [x] `pytest tests/test_evaluator.py` — lightweight evaluator handles all explore ops
+- [x] `ruff check src/rlm/ops/ src/rlm/evaluator/` passes
+- [x] `mypy src/rlm/ops/ src/rlm/evaluator/` passes
 
 Tests should cover:
 - `slice` with various ranges including edge cases (empty, out of bounds)
@@ -836,11 +836,11 @@ def parse_llm_output(raw: str) -> LLMAction:
 ### Success Criteria:
 
 #### Automated Verification:
-- [ ] `pytest tests/test_parser.py` — parses valid explore, commit, and final JSON
-- [ ] Parser handles JSON wrapped in ```json code fences
-- [ ] Parser raises `ParseError` on invalid input
-- [ ] `ruff check src/rlm/llm/` passes
-- [ ] `mypy src/rlm/llm/` passes
+- [x] `pytest tests/test_parser.py` — parses valid explore, commit, and final JSON
+- [x] Parser handles JSON wrapped in ```json code fences
+- [x] Parser raises `ParseError` on invalid input
+- [x] `ruff check src/rlm/llm/` passes
+- [x] `mypy src/rlm/llm/` passes
 
 Tests should cover:
 - Valid explore action parsing
@@ -1090,13 +1090,13 @@ click.echo(answer)
 ### Success Criteria:
 
 #### Automated Verification:
-- [ ] `pytest tests/test_orchestrator.py` — orchestrator handles explore/commit/final loop
-- [ ] Tests mock the LLM client to verify protocol flow
-- [ ] Tests verify max explore steps enforcement
-- [ ] Tests verify max commit cycles enforcement
-- [ ] Tests verify recursion depth limiting
-- [ ] `ruff check src/` passes
-- [ ] `mypy src/rlm/orchestrator.py` passes
+- [x] `pytest tests/test_orchestrator.py` — orchestrator handles explore/commit/final loop
+- [x] Tests mock the LLM client to verify protocol flow
+- [x] Tests verify max explore steps enforcement
+- [x] Tests verify max commit cycles enforcement
+- [x] Tests verify recursion depth limiting
+- [x] `ruff check src/` passes
+- [x] `mypy src/rlm/orchestrator.py` passes
 
 #### Manual Verification:
 - [ ] `rlm run -q "What is the first line?" -c RESEARCH.md -v` produces a reasonable answer
@@ -1228,13 +1228,13 @@ Update `cache stats` and `cache clear` to use the real `CacheStore`.
 ### Success Criteria:
 
 #### Automated Verification:
-- [ ] `pytest tests/test_cache.py` — cache store get/put/has/stats/clear work correctly
-- [ ] Identical operations produce cache hits
-- [ ] Different operations produce cache misses
-- [ ] Cache key is deterministic (same inputs = same key)
-- [ ] `rlm cache stats` shows real statistics
-- [ ] `rlm cache clear` removes entries
-- [ ] `ruff check src/` passes
+- [x] `pytest tests/test_cache.py` — cache store get/put/has/stats/clear work correctly
+- [x] Identical operations produce cache hits
+- [x] Different operations produce cache misses
+- [x] Cache key is deterministic (same inputs = same key)
+- [x] `rlm cache stats` shows real statistics
+- [x] `rlm cache clear` removes entries
+- [x] `ruff check src/` passes
 
 #### Manual Verification:
 - [ ] Run the same query twice; second run is noticeably faster
@@ -1303,9 +1303,9 @@ When `config.use_nix` is True, `_execute_commit_plan` routes through the Nix com
 ### Success Criteria:
 
 #### Automated Verification:
-- [ ] `pytest tests/test_nix_compiler.py` — generates valid Nix expressions (can be tested without Nix installed by checking string output)
-- [ ] `ruff check src/rlm/nix/` passes
-- [ ] When Nix is not installed, `--use-nix` raises a clear error
+- [x] `pytest tests/test_nix_compiler.py` — generates valid Nix expressions (can be tested without Nix installed by checking string output)
+- [x] `ruff check src/rlm/nix/` passes
+- [x] When Nix is not installed, `--use-nix` raises a clear error
 
 #### Manual Verification (requires Nix):
 - [ ] `rlm run -q "..." -c data.txt --use-nix -v` shows Nix derivation builds
@@ -1568,13 +1568,13 @@ LLM-generated code from affecting the host system.
 ### Success Criteria:
 
 #### Automated Verification:
-- [ ] `pytest tests/` — all tests pass
-- [ ] `ruff check src/ tests/` — no lint errors
-- [ ] `mypy src/` — no type errors
-- [ ] `rlm --help` — shows all commands
-- [ ] `rlm run --help` — shows all options
-- [ ] `rlm cache stats` — shows stats
-- [ ] `rlm cache clear` — clears cache
+- [x] `pytest tests/` — all tests pass
+- [x] `ruff check src/ tests/` — no lint errors
+- [x] `mypy src/` — no type errors
+- [x] `rlm --help` — shows all commands
+- [x] `rlm run --help` — shows all options
+- [x] `rlm cache stats` — shows stats
+- [x] `rlm cache clear` — clears cache
 
 #### Manual Verification:
 - [ ] README renders correctly on GitHub

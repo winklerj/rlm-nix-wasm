@@ -1,0 +1,2 @@
+[console_scripts]
+rlm = rlm.cli:main
