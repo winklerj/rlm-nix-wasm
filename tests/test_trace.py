@@ -229,3 +229,20 @@ def test_concurrent_record_llm_calls():
         t.join()
 
     assert len(node.events) == n_threads * calls_per_thread
+
+
+def test_child_trace_records_child_model():
+    """Child trace nodes should reflect the child model, not the parent model."""
+    parent = _make_node(trace_id=0)
+    parent.model = "orchestrator-model"
+
+    child = _make_node(trace_id=1)
+    child.model = "child-model"
+    child.depth = 1
+    parent.children.append(child)
+
+    trace = ExecutionTrace(timestamp="2026-02-09T00:00:00Z", root=parent)
+    raw = trace.model_dump_json()
+    restored = ExecutionTrace.model_validate_json(raw)
+    assert restored.root.model == "orchestrator-model"
+    assert restored.root.children[0].model == "child-model"

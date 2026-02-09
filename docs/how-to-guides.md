@@ -21,6 +21,22 @@ rlm run -q "Summarize this" -c doc.txt
 
 CLI flags take precedence over environment variables.
 
+## How to use different models for orchestrator and child calls
+
+Use a powerful reasoning model for the orchestrator while keeping sub-calls cheap:
+
+```bash
+# Opus for orchestration, nano for recursive sub-calls
+rlm run -q "Analyze this" -c data.txt -m claude-opus-4-6 --child-model gpt-5-nano
+
+# Set defaults via environment variables
+export RLM_MODEL=claude-opus-4-6
+export RLM_CHILD_MODEL=gpt-5-nano
+rlm run -q "Analyze this" -c data.txt
+```
+
+When `--child-model` is omitted, all recursive calls use the same model as the orchestrator.
+
 ## How to pipe data from stdin
 
 Omit the `-c` flag and pipe data in:

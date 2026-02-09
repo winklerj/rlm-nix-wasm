@@ -13,6 +13,7 @@ def load_config(**overrides: Any) -> RLMConfig:
     """Load configuration from environment variables and overrides."""
     env_mappings: dict[str, str | tuple[str, Any]] = {
         "RLM_MODEL": "model",
+        "RLM_CHILD_MODEL": "child_model",
         "RLM_MAX_EXPLORE_STEPS": ("max_explore_steps", int),
         "RLM_MAX_COMMIT_CYCLES": ("max_commit_cycles", int),
         "RLM_MAX_RECURSION_DEPTH": ("max_recursion_depth", int),

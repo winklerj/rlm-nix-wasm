@@ -4,6 +4,7 @@ import json
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pytest import approx
 
 from rlm.orchestrator import RLMOrchestrator
 from rlm.types import RLMConfig
@@ -196,3 +197,85 @@ class TestExploreCommitFlow:
         orch = _make_orchestrator_with_responses(config, responses)
         result = orch.run("How many lines?", "line 1\nline 2\nline 3")
         assert result == "3"
+
+
+class TestChildModel:
+    def test_child_uses_child_model(self, config):
+        """Child orchestrator should use child_model when set."""
+        config.model = "orchestrator-model"
+        config.child_model = "child-model"
+        parent = RLMOrchestrator(config)
+
+        with patch.object(RLMOrchestrator, 'run', return_value="result"):
+            parent._recursive_call("q", "ctx", depth=0)
+
+        assert len(parent.child_orchestrators) == 1
+        child = parent.child_orchestrators[0]
+        assert child.config.model == "child-model"
+        assert child.config.child_model is None
+
+    def test_child_falls_back_to_parent_model(self, config):
+        """Child orchestrator should use parent model when child_model is None."""
+        config.model = "orchestrator-model"
+        config.child_model = None
+        parent = RLMOrchestrator(config)
+
+        with patch.object(RLMOrchestrator, 'run', return_value="result"):
+            parent._recursive_call("q", "ctx", depth=0)
+
+        child = parent.child_orchestrators[0]
+        assert child.config.model == "orchestrator-model"
+
+    def test_parallel_map_uses_child_model(self, config):
+        """Parallel map should create children with child_model."""
+        config.model = "orchestrator-model"
+        config.child_model = "child-model"
+        config.max_parallel_jobs = 2
+        parent = RLMOrchestrator(config)
+
+        with patch.object(RLMOrchestrator, 'run', return_value="result"):
+            parent._parallel_map("prompt", ["a", "b"], depth=0)
+
+        assert len(parent.child_orchestrators) == 2
+        for child in parent.child_orchestrators:
+            assert child.config.model == "child-model"
+
+    def test_grandchild_uses_child_model(self, config):
+        """Children of children should also use the child model."""
+        config.model = "orchestrator-model"
+        config.child_model = "child-model"
+        parent = RLMOrchestrator(config)
+
+        with patch.object(RLMOrchestrator, 'run', return_value="result"):
+            parent._recursive_call("q", "ctx", depth=0)
+
+        child = parent.child_orchestrators[0]
+        with patch.object(RLMOrchestrator, 'run', return_value="result"):
+            child._recursive_call("q2", "ctx2", depth=1)
+
+        grandchild = child.child_orchestrators[0]
+        assert grandchild.config.model == "child-model"
+
+    def test_get_total_cost_dual_model(self, config):
+        """get_total_cost should price each orchestrator at its own model rate."""
+        config.model = "expensive-model"
+        config.child_model = "cheap-model"
+        parent = RLMOrchestrator(config)
+        parent.llm.total_input_tokens = 1000
+        parent.llm.total_output_tokens = 500
+
+        with patch.object(RLMOrchestrator, 'run', return_value="result"):
+            parent._recursive_call("q", "ctx", depth=0)
+        child = parent.child_orchestrators[0]
+        child.llm.total_input_tokens = 2000
+        child.llm.total_output_tokens = 1000
+
+        def mock_pricing(model: str, inp: int, out: int) -> float:
+            if model == "expensive-model":
+                return inp * 0.01 + out * 0.05
+            return inp * 0.001 + out * 0.005
+
+        total = parent.get_total_cost(mock_pricing)
+        expected_parent = 1000 * 0.01 + 500 * 0.05   # 35.0
+        expected_child = 2000 * 0.001 + 1000 * 0.005  # 7.0
+        assert total == approx(expected_parent + expected_child)

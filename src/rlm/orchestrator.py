@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from rich.console import Console
@@ -280,8 +281,14 @@ class RLMOrchestrator:
     def _recursive_call(self, query: str, context_text: str, depth: int) -> str:
         """Spawn a recursive RLM call."""
         with self.profile.measure("recursive", "recursive_call", depth=depth + 1):
+            child_config = self.config
+            if self.config.child_model:
+                child_config = self.config.model_copy(update={
+                    "model": self.config.child_model,
+                    "child_model": None,
+                })
             sub_orchestrator = RLMOrchestrator(
-                self.config, parent=self,
+                child_config, parent=self,
                 trace_collector=self.trace_collector,
             )
             self.child_orchestrators.append(sub_orchestrator)
@@ -341,6 +348,14 @@ class RLMOrchestrator:
             input_tokens += child_input
             output_tokens += child_output
         return input_tokens, output_tokens
+
+    def get_total_cost(self, pricing_fn: Callable[[str, int, int], float]) -> float:
+        """Get total cost including all child orchestrators, priced per-model."""
+        input_tokens, output_tokens = self.llm.get_token_usage()
+        cost = pricing_fn(self.config.model, input_tokens, output_tokens)
+        for child in self.child_orchestrators:
+            cost += child.get_total_cost(pricing_fn)
+        return cost
 
     def get_total_profile(self) -> TimingProfile:
         """Get merged timing profile including all child orchestrators."""

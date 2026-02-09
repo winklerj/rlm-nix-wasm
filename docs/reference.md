@@ -16,7 +16,8 @@ rlm run [OPTIONS]
 |--------|-------|------|---------|-------------|
 | `--query` | `-q` | string | required | The question to answer |
 | `--context` | `-c` | path | stdin | Path to the context file. If omitted, reads from stdin |
-| `--model` | `-m` | string | `gpt-4o-mini` | LLM model identifier (any litellm-supported model) |
+| `--model` | `-m` | string | `claude-opus-4-6` | LLM model for the orchestrator (any litellm-supported model) |
+| `--child-model` | | string | same as `--model` | LLM model for recursive sub-calls |
 | `--max-explore` | | int | `20` | Maximum explore steps before forcing a commit |
 | `--max-depth` | | int | `1` | Maximum recursion depth |
 | `--use-nix` | | flag | `false` | Compile operations to Nix derivations |
@@ -51,7 +52,8 @@ All settings can be configured via environment variables. CLI flags take precede
 
 | Setting | Environment Variable | CLI Flag | Default |
 |---------|---------------------|----------|---------|
-| LLM model | `RLM_MODEL` | `--model` | `gpt-4o-mini` |
+| LLM model | `RLM_MODEL` | `--model` | `claude-opus-4-6` |
+| Child LLM model | `RLM_CHILD_MODEL` | `--child-model` | same as `--model` |
 | Max explore steps | `RLM_MAX_EXPLORE_STEPS` | `--max-explore` | `20` |
 | Max commit cycles | `RLM_MAX_COMMIT_CYCLES` | -- | `5` |
 | Max recursion depth | `RLM_MAX_RECURSION_DEPTH` | `--max-depth` | `1` |
@@ -295,6 +297,8 @@ The `--trace` option writes a JSON file with the following structure:
 ```
 
 The `root` is an `OrchestratorTrace` node. Its `events` list contains all trace events in chronological execution order, discriminated by the `type` field (`llm_call`, `explore_step`, `commit_cycle`, `final_answer`). Recursive calls (`rlm_call`, `map`) produce child nodes nested under `children`, each with the same structure. The `child_trace_ids` field in commit operations cross-references which children were spawned by that operation.
+
+When `--child-model` is used, the `model` field in child nodes reflects the child model, not the orchestrator model.
 
 ### Execution flow
 

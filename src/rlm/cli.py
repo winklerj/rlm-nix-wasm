@@ -17,6 +17,7 @@ console = Console(stderr=True)
 # Pricing per million tokens (as of Feb 2026)
 MODEL_PRICING = {
     # Anthropic Claude models (https://platform.claude.com/docs/en/about-claude/pricing)
+    "claude-opus-4-6": {"input": 5.00, "output": 25.00},
     "claude-opus-4.6": {"input": 5.00, "output": 25.00},
     "claude-opus-4.5": {"input": 5.00, "output": 25.00},
     "claude-opus-4.1": {"input": 15.00, "output": 75.00},
@@ -85,7 +86,8 @@ def list_model_pricing() -> None:
 @main.command()
 @click.option("--query", "-q", required=True, help="The query to answer.")
 @click.option("--context", "-c", type=click.Path(exists=True), help="Path to context file.")
-@click.option("--model", "-m", default=None, help="LLM model to use.")
+@click.option("--model", "-m", default=None, help="LLM model for the orchestrator.")
+@click.option("--child-model", default=None, help="LLM model for recursive sub-calls (defaults to --model).")
 @click.option("--max-explore", default=None, type=int, help="Max explore steps.")
 @click.option("--max-depth", default=None, type=int, help="Max recursion depth.")
 @click.option("--use-nix", is_flag=True, default=False, help="Use Nix for sandboxing.")
@@ -96,6 +98,7 @@ def run(
     query: str,
     context: str | None,
     model: str | None,
+    child_model: str | None,
     max_explore: int | None,
     max_depth: int | None,
     use_nix: bool,
@@ -105,6 +108,7 @@ def run(
     """Run an RLM query against a context."""
     config = load_config(
         model=model,
+        child_model=child_model,
         max_explore_steps=max_explore,
         max_recursion_depth=max_depth,
         use_nix=use_nix,
@@ -122,6 +126,8 @@ def run(
 
     if verbose:
         console.print(f"[dim]Model: {config.model}[/dim]")
+        if config.child_model:
+            console.print(f"[dim]Child model: {config.child_model}[/dim]")
         console.print(f"[dim]Context: {len(context_text):,} chars[/dim]")
         if config.use_nix:
             console.print("[dim]Nix sandboxing: enabled[/dim]")
@@ -141,7 +147,7 @@ def run(
     if verbose:
         input_tokens, output_tokens = orchestrator.get_total_token_usage()
         total_tokens = input_tokens + output_tokens
-        cost = estimate_cost(config.model, input_tokens, output_tokens)
+        cost = orchestrator.get_total_cost(estimate_cost)
 
         console.print(f"\n[dim]Completed in {elapsed:.1f}s[/dim]")
         console.print(f"[dim]Tokens: {input_tokens:,} in + {output_tokens:,} out = {total_tokens:,} total[/dim]")
