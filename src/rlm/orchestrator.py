@@ -15,6 +15,7 @@ from rlm.llm.client import LLMClient
 from rlm.llm.parser import ParseError, parse_llm_output
 from rlm.llm.prompts import SYSTEM_PROMPT
 from rlm.timing import TimingProfile
+from rlm.trace import CommitOperationTrace, ExecutionTrace, OrchestratorTrace, TraceCollector
 from rlm.types import (
     CommitPlan,
     Context,
@@ -31,13 +32,22 @@ logger = logging.getLogger(__name__)
 class RLMOrchestrator:
     """Orchestrates the explore/commit protocol between the LLM and evaluators."""
 
-    def __init__(self, config: RLMConfig, parent: "RLMOrchestrator | None" = None):
+    def __init__(self, config: RLMConfig, parent: "RLMOrchestrator | None" = None,
+                 trace_collector: TraceCollector | None = None):
         self.config = config
+        self.trace_collector = trace_collector or TraceCollector()
+        self.trace_node = OrchestratorTrace(
+            trace_id=self.trace_collector.next_trace_id(),
+            depth=0, query="", context_length=0, model=config.model,
+        )
         self.profile = TimingProfile(enabled=config.verbose)
-        self.llm = LLMClient(config, profile=self.profile)
+        self.console = Console(stderr=True)
+        self.llm = LLMClient(config, profile=self.profile,
+                              verbose=config.verbose, console=self.console,
+                              trace=self.trace_collector,
+                              trace_node=self.trace_node)
         self.cache = CacheStore(config.cache_dir)
         self.evaluator = LightweightEvaluator(cache=self.cache, profile=self.profile)
-        self.console = Console(stderr=True)
         self.parent = parent
         self.child_orchestrators: list[RLMOrchestrator] = []
 
@@ -63,6 +73,11 @@ class RLMOrchestrator:
         Returns:
             The final answer as a string.
         """
+        self.trace_node.depth = depth
+        self.trace_node.query = query
+        self.trace_node.context_length = len(context_text)
+        run_start = time.monotonic()
+
         if depth > self.config.max_recursion_depth:
             return self._direct_call(query, context_text)
 
@@ -97,6 +112,11 @@ class RLMOrchestrator:
                         f"[green]Final answer after {explore_steps} explore steps, "
                         f"{commit_cycles} commit cycles[/green]"
                     )
+                self.trace_collector.record_final_answer(
+                    self.trace_node, answer=action.answer,
+                    explore_steps=explore_steps, commit_cycles=commit_cycles,
+                )
+                self.trace_node.elapsed_s = time.monotonic() - run_start
                 return action.answer
 
             elif isinstance(action, ExploreAction):
@@ -126,6 +146,13 @@ class RLMOrchestrator:
                             f"{op_desc}{bind_note}  ({step_elapsed:.3f}s{cache_note})[/dim]"
                         )
 
+                    self.trace_collector.record_explore_step(
+                        self.trace_node, step_number=explore_steps,
+                        elapsed_s=step_elapsed, op_type=op.op.value,
+                        op_args=op.args, op_bind=op.bind,
+                        result_value=result.value, cached=result.cached,
+                    )
+
                     display_value = result.value
                     if len(display_value) > 4000:
                         display_value = (
@@ -137,6 +164,12 @@ class RLMOrchestrator:
                         f"Result of {op.op}:\n{display_value}"
                     )
                 except Exception as e:
+                    self.trace_collector.record_explore_step(
+                        self.trace_node, step_number=explore_steps,
+                        elapsed_s=time.monotonic() - step_start,
+                        op_type=op.op.value, op_args=op.args, op_bind=op.bind,
+                        result_value="", cached=False, error=str(e),
+                    )
                     response = self.llm.send(f"Error executing {op.op}: {e}")
 
             elif isinstance(action, CommitPlan):
@@ -160,8 +193,15 @@ class RLMOrchestrator:
                     )
 
                 try:
-                    commit_result = self._execute_commit_plan(action, bindings, depth)
+                    commit_result, op_traces = self._execute_commit_plan(
+                        action, bindings, depth,
+                    )
                     bindings[action.output] = commit_result
+                    self.trace_collector.record_commit_cycle(
+                        self.trace_node, cycle_number=commit_cycles,
+                        output_variable=action.output,
+                        operations=op_traces, result_value=commit_result,
+                    )
 
                     display_result = commit_result
                     if len(display_result) > 4000:
@@ -178,25 +218,35 @@ class RLMOrchestrator:
 
     def _execute_commit_plan(
         self, plan: CommitPlan, bindings: dict[str, str], depth: int
-    ) -> str:
+    ) -> tuple[str, list[CommitOperationTrace]]:
         """Execute a commit plan, handling recursive calls and parallelism."""
         local_bindings = dict(bindings)
+        op_traces: list[CommitOperationTrace] = []
 
         for i, op in enumerate(plan.operations, 1):
             step_start = time.monotonic()
+            child_trace_ids: list[int] = []
 
             if op.op == OpType.RLM_CALL:
                 query = op.args["query"]
                 ctx_ref = op.args["context"]
                 ctx_text = local_bindings[ctx_ref]
                 result_value = self._recursive_call(query, ctx_text, depth)
+                if self.trace_collector.enabled:
+                    child_trace_ids.append(
+                        self.child_orchestrators[-1].trace_node.trace_id
+                    )
 
             elif op.op == OpType.MAP:
                 prompt = op.args["prompt"]
                 input_ref = op.args["input"]
                 raw = local_bindings[input_ref]
                 items: list[str] = json.loads(raw) if raw.startswith("[") else [raw]
+                before_count = len(self.child_orchestrators)
                 result_value = self._parallel_map(prompt, items, depth)
+                if self.trace_collector.enabled:
+                    for child in self.child_orchestrators[before_count:]:
+                        child_trace_ids.append(child.trace_node.trace_id)
 
             else:
                 result = self.evaluator.execute(op, local_bindings)
@@ -214,14 +264,31 @@ class RLMOrchestrator:
             if op.bind:
                 local_bindings[op.bind] = result_value
 
-        return local_bindings[plan.output]
+            if self.trace_collector.enabled:
+                op_traces.append(CommitOperationTrace(
+                    index=i,
+                    operation_op=op.op.value,
+                    operation_args=op.args,
+                    operation_bind=op.bind,
+                    elapsed_s=step_elapsed,
+                    result_value=result_value,
+                    child_trace_ids=child_trace_ids,
+                ))
+
+        return local_bindings[plan.output], op_traces
 
     def _recursive_call(self, query: str, context_text: str, depth: int) -> str:
         """Spawn a recursive RLM call."""
         with self.profile.measure("recursive", "recursive_call", depth=depth + 1):
-            sub_orchestrator = RLMOrchestrator(self.config, parent=self)
+            sub_orchestrator = RLMOrchestrator(
+                self.config, parent=self,
+                trace_collector=self.trace_collector,
+            )
             self.child_orchestrators.append(sub_orchestrator)
-            return sub_orchestrator.run(query, context_text, depth=depth + 1)
+            result = sub_orchestrator.run(query, context_text, depth=depth + 1)
+            if self.trace_collector.enabled:
+                self.trace_node.children.append(sub_orchestrator.trace_node)
+            return result
 
     def _parallel_map(self, prompt: str, items: list[str], depth: int) -> str:
         """Execute map operation with parallel recursive calls."""
@@ -244,7 +311,10 @@ class RLMOrchestrator:
         max_chars = 100_000
         truncated = context_text[:max_chars]
 
-        client = LLMClient(self.config)
+        client = LLMClient(self.config, verbose=self.config.verbose,
+                            console=self.console,
+                            trace=self.trace_collector,
+                            trace_node=self.trace_node)
         client.set_system_prompt(
             "Answer the following query based on the provided context. "
             "Be precise and concise."
@@ -279,3 +349,11 @@ class RLMOrchestrator:
         for child in self.child_orchestrators:
             merged.merge(child.get_total_profile())
         return merged
+
+    def get_trace(self) -> ExecutionTrace:
+        """Return the execution trace for this orchestrator."""
+        from datetime import datetime, timezone
+        return ExecutionTrace(
+            timestamp=datetime.now(timezone.utc).isoformat(),
+            root=self.trace_node,
+        )

@@ -90,6 +90,8 @@ def list_model_pricing() -> None:
 @click.option("--max-depth", default=None, type=int, help="Max recursion depth.")
 @click.option("--use-nix", is_flag=True, default=False, help="Use Nix for sandboxing.")
 @click.option("--verbose", "-v", is_flag=True, default=False, help="Verbose output.")
+@click.option("--trace", "trace_path", type=click.Path(), default=None,
+              help="Write execution trace JSON to PATH.")
 def run(
     query: str,
     context: str | None,
@@ -98,6 +100,7 @@ def run(
     max_depth: int | None,
     use_nix: bool,
     verbose: bool,
+    trace_path: str | None,
 ) -> None:
     """Run an RLM query against a context."""
     config = load_config(
@@ -124,9 +127,12 @@ def run(
             console.print("[dim]Nix sandboxing: enabled[/dim]")
 
     from rlm.orchestrator import RLMOrchestrator
+    from rlm.trace import TraceCollector
+
+    trace_collector = TraceCollector(enabled=trace_path is not None)
 
     start = time.monotonic()
-    orchestrator = RLMOrchestrator(config)
+    orchestrator = RLMOrchestrator(config, trace_collector=trace_collector)
     answer = orchestrator.run(query, context_text)
     elapsed = time.monotonic() - start
 
@@ -144,6 +150,12 @@ def run(
         from rlm.timing import TimingProfile
         merged_profile = orchestrator.get_total_profile()
         TimingProfile.print_summary(merged_profile, elapsed, console)
+
+    if trace_path is not None:
+        trace = orchestrator.get_trace()
+        trace_file = Path(trace_path)
+        TraceCollector.write_trace(trace, trace_file)
+        console.print(f"[dim]Trace written to {trace_file}[/dim]")
 
 
 @main.group()
