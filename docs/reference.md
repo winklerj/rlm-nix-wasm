@@ -229,7 +229,7 @@ The `--trace` option writes a JSON file with the following structure:
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1",
   "timestamp": "2026-02-09T18:30:00+00:00",
   "root": {
     "trace_id": 0,
@@ -238,8 +238,9 @@ The `--trace` option writes a JSON file with the following structure:
     "context_length": 45230,
     "model": "gpt-5-nano",
     "elapsed_s": 12.3,
-    "llm_calls": [
+    "events": [
       {
+        "type": "llm_call",
         "call_number": 1,
         "timestamp": 1739105400.0,
         "elapsed_s": 1.2,
@@ -248,10 +249,9 @@ The `--trace` option writes a JSON file with the following structure:
         "output_tokens": 85,
         "user_message": "Begin. The context variable is available.",
         "assistant_message": "{\"mode\":\"explore\", ...}"
-      }
-    ],
-    "explore_steps": [
+      },
       {
+        "type": "explore_step",
         "step_number": 1,
         "timestamp": 1739105401.0,
         "elapsed_s": 0.002,
@@ -261,10 +261,9 @@ The `--trace` option writes a JSON file with the following structure:
         "result_value": "line1\nline2\nline3",
         "cached": false,
         "error": null
-      }
-    ],
-    "commit_cycles": [
+      },
       {
+        "type": "commit_cycle",
         "cycle_number": 1,
         "timestamp": 1739105409.0,
         "output_variable": "total",
@@ -281,20 +280,21 @@ The `--trace` option writes a JSON file with the following structure:
           }
         ],
         "result_value": "7"
+      },
+      {
+        "type": "final_answer",
+        "timestamp": 1739105410.0,
+        "answer": "There are 7 errors.",
+        "total_explore_steps": 2,
+        "total_commit_cycles": 1
       }
     ],
-    "final_answer": {
-      "timestamp": 1739105410.0,
-      "answer": "There are 7 errors.",
-      "total_explore_steps": 2,
-      "total_commit_cycles": 1
-    },
     "children": []
   }
 }
 ```
 
-The `root` is an `OrchestratorTrace` node. Recursive calls (`rlm_call`, `map`) produce child nodes nested under `children`, each with the same structure. The `child_trace_ids` field in commit operations cross-references which children were spawned by that operation.
+The `root` is an `OrchestratorTrace` node. Its `events` list contains all trace events in chronological execution order, discriminated by the `type` field (`llm_call`, `explore_step`, `commit_cycle`, `final_answer`). Recursive calls (`rlm_call`, `map`) produce child nodes nested under `children`, each with the same structure. The `child_trace_ids` field in commit operations cross-references which children were spawned by that operation.
 
 ### Execution flow
 

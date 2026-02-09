@@ -6,11 +6,14 @@ import threading
 import time
 from pathlib import Path
 
-from pydantic import BaseModel
+from typing import Annotated, Literal
+
+from pydantic import BaseModel, Field
 
 
 class LLMCallTrace(BaseModel):
     """One LLM send/response round-trip."""
+    type: Literal["llm_call"] = "llm_call"
     call_number: int
     timestamp: float           # time.time() wall-clock
     elapsed_s: float
@@ -23,6 +26,7 @@ class LLMCallTrace(BaseModel):
 
 class ExploreStepTrace(BaseModel):
     """One explore-mode step."""
+    type: Literal["explore_step"] = "explore_step"
     step_number: int
     timestamp: float
     elapsed_s: float
@@ -48,6 +52,7 @@ class CommitOperationTrace(BaseModel):
 
 class CommitCycleTrace(BaseModel):
     """One full commit cycle."""
+    type: Literal["commit_cycle"] = "commit_cycle"
     cycle_number: int
     timestamp: float
     output_variable: str
@@ -57,10 +62,17 @@ class CommitCycleTrace(BaseModel):
 
 class FinalAnswerTrace(BaseModel):
     """The final answer event."""
+    type: Literal["final_answer"] = "final_answer"
     timestamp: float
     answer: str
     total_explore_steps: int
     total_commit_cycles: int
+
+
+TraceEvent = Annotated[
+    LLMCallTrace | ExploreStepTrace | CommitCycleTrace | FinalAnswerTrace,
+    Field(discriminator="type"),
+]
 
 
 class OrchestratorTrace(BaseModel):
@@ -71,16 +83,13 @@ class OrchestratorTrace(BaseModel):
     context_length: int
     model: str
     elapsed_s: float = 0.0
-    llm_calls: list[LLMCallTrace] = []
-    explore_steps: list[ExploreStepTrace] = []
-    commit_cycles: list[CommitCycleTrace] = []
-    final_answer: FinalAnswerTrace | None = None
+    events: list[TraceEvent] = []
     children: list["OrchestratorTrace"] = []
 
 
 class ExecutionTrace(BaseModel):
     """Top-level trace document."""
-    version: str = "1.0"
+    version: str = "1.1"
     timestamp: str
     root: OrchestratorTrace
 
@@ -118,7 +127,7 @@ class TraceCollector:
         if not self.enabled:
             return
         with self._lock:
-            node.llm_calls.append(LLMCallTrace(
+            node.events.append(LLMCallTrace(
                 call_number=call_number,
                 timestamp=time.time(),
                 elapsed_s=elapsed_s,
@@ -146,7 +155,7 @@ class TraceCollector:
         if not self.enabled:
             return
         with self._lock:
-            node.explore_steps.append(ExploreStepTrace(
+            node.events.append(ExploreStepTrace(
                 step_number=step_number,
                 timestamp=time.time(),
                 elapsed_s=elapsed_s,
@@ -171,7 +180,7 @@ class TraceCollector:
         if not self.enabled:
             return
         with self._lock:
-            node.commit_cycles.append(CommitCycleTrace(
+            node.events.append(CommitCycleTrace(
                 cycle_number=cycle_number,
                 timestamp=time.time(),
                 output_variable=output_variable,
@@ -190,12 +199,13 @@ class TraceCollector:
         """Record the final answer event."""
         if not self.enabled:
             return
-        node.final_answer = FinalAnswerTrace(
-            timestamp=time.time(),
-            answer=answer,
-            total_explore_steps=explore_steps,
-            total_commit_cycles=commit_cycles,
-        )
+        with self._lock:
+            node.events.append(FinalAnswerTrace(
+                timestamp=time.time(),
+                answer=answer,
+                total_explore_steps=explore_steps,
+                total_commit_cycles=commit_cycles,
+            ))
 
     @staticmethod
     def write_trace(trace: ExecutionTrace, path: Path) -> None:

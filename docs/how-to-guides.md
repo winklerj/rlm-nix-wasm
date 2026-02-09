@@ -103,10 +103,10 @@ Or use `jq` to drill into specific parts:
 
 ```bash
 # Show each LLM round-trip
-jq '.root.llm_calls[] | {call_number, elapsed_s, input_tokens, output_tokens}' trace.json
+jq '[.root.events[] | select(.type == "llm_call")] | .[] | {call_number, elapsed_s, input_tokens, output_tokens}' trace.json
 
 # Show explore steps
-jq '.root.explore_steps[] | {step_number, operation_op, cached}' trace.json
+jq '[.root.events[] | select(.type == "explore_step")] | .[] | {step_number, operation_op, cached}' trace.json
 
 # Show recursive child calls
 jq '.root.children[] | {trace_id, depth, query, elapsed_s}' trace.json

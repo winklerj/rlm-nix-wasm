@@ -45,10 +45,7 @@ def test_disabled_collector_noop():
     tc.record_final_answer(
         node, answer="42", explore_steps=1, commit_cycles=0,
     )
-    assert node.llm_calls == []
-    assert node.explore_steps == []
-    assert node.commit_cycles == []
-    assert node.final_answer is None
+    assert node.events == []
 
 
 # --- TraceCollector enabled ---
@@ -68,8 +65,9 @@ def test_record_llm_call():
         input_tokens=100, output_tokens=50,
         user_message="Begin.", assistant_message='{"mode":"final","answer":"ok"}',
     )
-    assert len(node.llm_calls) == 1
-    call = node.llm_calls[0]
+    assert len(node.events) == 1
+    call = node.events[0]
+    assert call.type == "llm_call"
     assert call.call_number == 1
     assert call.elapsed_s == 2.5
     assert call.model == "gpt-5-nano"
@@ -88,8 +86,9 @@ def test_record_explore_step():
         op_args={"input": "context", "pattern": "error"},
         op_bind="matches", result_value="line1\nline2", cached=True,
     )
-    assert len(node.explore_steps) == 1
-    step = node.explore_steps[0]
+    assert len(node.events) == 1
+    step = node.events[0]
+    assert step.type == "explore_step"
     assert step.step_number == 3
     assert step.operation_op == "grep"
     assert step.operation_args == {"input": "context", "pattern": "error"}
@@ -107,7 +106,7 @@ def test_record_explore_step_with_error():
         op_args={"input": "x"}, op_bind=None,
         result_value="", cached=False, error="KeyError: x",
     )
-    assert node.explore_steps[0].error == "KeyError: x"
+    assert node.events[0].error == "KeyError: x"
 
 
 def test_record_commit_cycle():
@@ -129,8 +128,9 @@ def test_record_commit_cycle():
         node, cycle_number=1, output_variable="result",
         operations=ops, result_value="answer",
     )
-    assert len(node.commit_cycles) == 1
-    cycle = node.commit_cycles[0]
+    assert len(node.events) == 1
+    cycle = node.events[0]
+    assert cycle.type == "commit_cycle"
     assert cycle.cycle_number == 1
     assert cycle.output_variable == "result"
     assert len(cycle.operations) == 2
@@ -144,34 +144,38 @@ def test_record_final_answer():
     tc.record_final_answer(
         node, answer="The answer is 42", explore_steps=5, commit_cycles=2,
     )
-    assert node.final_answer is not None
-    assert node.final_answer.answer == "The answer is 42"
-    assert node.final_answer.total_explore_steps == 5
-    assert node.final_answer.total_commit_cycles == 2
-    assert node.final_answer.timestamp > 0
+    assert len(node.events) == 1
+    fa = node.events[0]
+    assert fa.type == "final_answer"
+    assert fa.answer == "The answer is 42"
+    assert fa.total_explore_steps == 5
+    assert fa.total_commit_cycles == 2
+    assert fa.timestamp > 0
 
 
 # --- Serialization ---
 
 def test_execution_trace_json_roundtrip():
     node = _make_node()
-    node.final_answer = FinalAnswerTrace(
-        timestamp=1000.0, answer="ok", total_explore_steps=1, total_commit_cycles=0,
-    )
-    node.llm_calls.append(LLMCallTrace(
+    node.events.append(LLMCallTrace(
         call_number=1, timestamp=999.0, elapsed_s=1.0, model="m",
         input_tokens=10, output_tokens=5, user_message="hi", assistant_message="bye",
+    ))
+    node.events.append(FinalAnswerTrace(
+        timestamp=1000.0, answer="ok", total_explore_steps=1, total_commit_cycles=0,
     ))
     trace = ExecutionTrace(timestamp="2026-02-09T00:00:00Z", root=node)
     raw = trace.model_dump_json(indent=2)
     parsed = json.loads(raw)
-    assert parsed["version"] == "1.0"
+    assert parsed["version"] == "1.1"
     assert parsed["root"]["trace_id"] == 0
-    assert len(parsed["root"]["llm_calls"]) == 1
+    assert len(parsed["root"]["events"]) == 2
+    assert parsed["root"]["events"][0]["type"] == "llm_call"
+    assert parsed["root"]["events"][1]["type"] == "final_answer"
     # Round-trip back to model
     restored = ExecutionTrace.model_validate_json(raw)
-    assert restored.root.final_answer is not None
-    assert restored.root.final_answer.answer == "ok"
+    fa = [e for e in restored.root.events if e.type == "final_answer"][0]
+    assert fa.answer == "ok"
 
 
 def test_nested_children_serialize():
@@ -224,4 +228,4 @@ def test_concurrent_record_llm_calls():
     for t in threads:
         t.join()
 
-    assert len(node.llm_calls) == n_threads * calls_per_thread
+    assert len(node.events) == n_threads * calls_per_thread
