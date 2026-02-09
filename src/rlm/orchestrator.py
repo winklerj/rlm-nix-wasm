@@ -28,12 +28,14 @@ logger = logging.getLogger(__name__)
 class RLMOrchestrator:
     """Orchestrates the explore/commit protocol between the LLM and evaluators."""
 
-    def __init__(self, config: RLMConfig):
+    def __init__(self, config: RLMConfig, parent: "RLMOrchestrator | None" = None):
         self.config = config
         self.llm = LLMClient(config)
         self.cache = CacheStore(config.cache_dir)
         self.evaluator = LightweightEvaluator(cache=self.cache)
         self.console = Console(stderr=True)
+        self.parent = parent
+        self.child_orchestrators: list[RLMOrchestrator] = []
 
         if config.use_nix:
             from rlm.nix.builder import NixBuilder
@@ -189,7 +191,8 @@ class RLMOrchestrator:
 
     def _recursive_call(self, query: str, context_text: str, depth: int) -> str:
         """Spawn a recursive RLM call."""
-        sub_orchestrator = RLMOrchestrator(self.config)
+        sub_orchestrator = RLMOrchestrator(self.config, parent=self)
+        self.child_orchestrators.append(sub_orchestrator)
         return sub_orchestrator.run(query, context_text, depth=depth + 1)
 
     def _parallel_map(self, prompt: str, items: list[str], depth: int) -> str:
@@ -218,3 +221,12 @@ class RLMOrchestrator:
             "Be precise and concise."
         )
         return client.send(f"Query: {query}\n\nContext:\n{truncated}")
+
+    def get_total_token_usage(self) -> tuple[int, int]:
+        """Get total token usage including all child orchestrators."""
+        input_tokens, output_tokens = self.llm.get_token_usage()
+        for child in self.child_orchestrators:
+            child_input, child_output = child.get_total_token_usage()
+            input_tokens += child_input
+            output_tokens += child_output
+        return input_tokens, output_tokens
