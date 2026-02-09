@@ -30,6 +30,20 @@ Display cache statistics: entry count, total size, and cache directory location.
 
 Delete all cached operation results.
 
+### `rlm list-model-pricing`
+
+Show the known model prices that `rlm-secure` uses to estimate cost.
+
+```bash
+rlm list-model-pricing
+```
+
+The command prints a table (if `rich` is installed) or plain text with:
+
+- model name
+- input price per 1M tokens
+- output price per 1M tokens
+
 ## Configuration
 
 All settings can be configured via environment variables. CLI flags take precedence over environment variables. Environment variables take precedence over defaults.

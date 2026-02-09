@@ -105,6 +105,16 @@ Change the cache directory:
 export RLM_CACHE_DIR=/tmp/rlm-cache
 ```
 
+## How to see model pricing
+
+You can see the prices that `rlm-secure` uses to estimate cost.
+
+```bash
+rlm list-model-pricing
+```
+
+This shows each model name, plus input and output price per 1M tokens.
+
 ## How to run the development tools
 
 Install development dependencies:
