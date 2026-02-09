@@ -136,10 +136,14 @@ def run(
         input_tokens, output_tokens = orchestrator.get_total_token_usage()
         total_tokens = input_tokens + output_tokens
         cost = estimate_cost(config.model, input_tokens, output_tokens)
-        
+
         console.print(f"\n[dim]Completed in {elapsed:.1f}s[/dim]")
         console.print(f"[dim]Tokens: {input_tokens:,} in + {output_tokens:,} out = {total_tokens:,} total[/dim]")
         console.print(f"[dim]Estimated cost: ${cost:.4f}[/dim]")
+
+        from rlm.timing import TimingProfile
+        merged_profile = orchestrator.get_total_profile()
+        TimingProfile.print_summary(merged_profile, elapsed, console)
 
 
 @main.group()

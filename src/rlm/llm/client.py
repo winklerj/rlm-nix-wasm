@@ -4,17 +4,19 @@ from __future__ import annotations
 
 from litellm import completion
 
+from rlm.timing import TimingProfile
 from rlm.types import RLMConfig
 
 
 class LLMClient:
     """Manages LLM conversations for the explore/commit protocol."""
 
-    def __init__(self, config: RLMConfig):
+    def __init__(self, config: RLMConfig, profile: TimingProfile | None = None):
         self.config = config
         self.messages: list[dict[str, str]] = []
         self.total_input_tokens = 0
         self.total_output_tokens = 0
+        self.profile = profile or TimingProfile()
 
     def set_system_prompt(self, prompt: str) -> None:
         """Set the system prompt for this conversation."""
@@ -24,11 +26,12 @@ class LLMClient:
         """Send a message and get the assistant's response."""
         self.messages.append({"role": "user", "content": user_message})
 
-        response = completion(
-            model=self.config.model,
-            messages=self.messages,
-            temperature=self.config.temperature,
-        )
+        with self.profile.measure("llm", "send", model=self.config.model):
+            response = completion(
+                model=self.config.model,
+                messages=self.messages,
+                temperature=self.config.temperature,
+            )
 
         # Track token usage
         if hasattr(response, 'usage') and response.usage:
