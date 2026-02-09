@@ -99,8 +99,12 @@ class TestNixNotInstalled:
 
         from rlm.types import RLMConfig
 
+        try:
+            from rlm.orchestrator import RLMOrchestrator
+        except ImportError as e:
+            pytest.skip(f"Cannot import orchestrator (missing native dep): {e}")
+
         config = RLMConfig(use_nix=True)
         with patch("rlm.nix.builder.NixBuilder.available", new_callable=lambda: property(lambda self: False)):
-            from rlm.orchestrator import RLMOrchestrator
             with pytest.raises(RuntimeError, match="not installed"):
                 RLMOrchestrator(config)

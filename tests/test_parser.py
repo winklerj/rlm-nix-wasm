@@ -145,5 +145,6 @@ class TestErrorHandling:
             "mode": "commit",
             "operations": [{"op": "count", "args": {"input": "context"}}],
         })
-        with pytest.raises(KeyError):
-            parse_llm_output(raw)
+        action = parse_llm_output(raw)
+        assert isinstance(action, CommitPlan)
+        assert action.output == "result"
