@@ -13,6 +13,8 @@ class LLMClient:
     def __init__(self, config: RLMConfig):
         self.config = config
         self.messages: list[dict[str, str]] = []
+        self.total_input_tokens = 0
+        self.total_output_tokens = 0
 
     def set_system_prompt(self, prompt: str) -> None:
         """Set the system prompt for this conversation."""
@@ -28,6 +30,11 @@ class LLMClient:
             temperature=self.config.temperature,
         )
 
+        # Track token usage
+        if hasattr(response, 'usage') and response.usage:
+            self.total_input_tokens += response.usage.prompt_tokens or 0
+            self.total_output_tokens += response.usage.completion_tokens or 0
+
         assistant_message: str = response.choices[0].message.content or ""
         self.messages.append({"role": "assistant", "content": assistant_message})
         return assistant_message
@@ -35,3 +42,7 @@ class LLMClient:
     def message_count(self) -> int:
         """Number of messages in the conversation."""
         return len(self.messages)
+
+    def get_token_usage(self) -> tuple[int, int]:
+        """Return (input_tokens, output_tokens) for this conversation."""
+        return self.total_input_tokens, self.total_output_tokens

@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RLM Tracer</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0d1117; 
+            color: #c9d1d9; 
+            padding: 20px;
+            line-height: 1.5;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { color: #58a6ff; margin-bottom: 20px; }
+        
+        .input-section {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        label { display: block; margin-bottom: 8px; color: #8b949e; font-size: 14px; }
+        input, textarea, select {
+            width: 100%;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 10px;
+            color: #c9d1d9;
+            font-family: inherit;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        textarea { min-height: 150px; resize: vertical; font-family: monospace; }
+        
+        .row { display: flex; gap: 15px; }
+        .row > div { flex: 1; }
+        
+        button {
+            background: #238636;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        button:hover { background: #2ea043; }
+        button:disabled { background: #30363d; cursor: not-allowed; }
+        button.secondary { background: #21262d; border: 1px solid #30363d; }
+        button.secondary:hover { background: #30363d; }
+        button.danger { background: #da3633; }
+        button.danger:hover { background: #f85149; }
+        
+        .trace-section {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .trace-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .trace-header h2 { color: #58a6ff; font-size: 18px; }
+        
+        .step {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            overflow: hidden;
+        }
+        .step-header {
+            background: #21262d;
+            padding: 12px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+        .step-header:hover { background: #30363d; }
+        .step-type {
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .step-type.explore { background: #1f6feb; }
+        .step-type.commit { background: #a371f7; }
+        .step-type.final { background: #238636; }
+        .step-type.pending { background: #d29922; }
+        
+        .step-content {
+            padding: 15px;
+            border-top: 1px solid #30363d;
+        }
+        .step-content pre {
+            background: #161b22;
+            padding: 12px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 13px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .step-content h4 { color: #8b949e; margin: 15px 0 8px; font-size: 13px; }
+        .step-content h4:first-child { margin-top: 0; }
+        
+        .approval-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #30363d;
+        }
+        
+        .status-bar {
+            display: flex;
+            gap: 20px;
+            padding: 10px 15px;
+            background: #21262d;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        .status-item { color: #8b949e; }
+        .status-item span { color: #c9d1d9; font-weight: 500; }
+        
+        .hidden { display: none; }
+        
+        #finalAnswer {
+            background: #0d1117;
+            border: 2px solid #238636;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        #finalAnswer h3 { color: #238636; margin-bottom: 10px; }
+        #finalAnswer pre { 
+            background: #161b22; 
+            padding: 15px; 
+            border-radius: 6px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 RLM Tracer</h1>
+        
+        <div class="input-section">
+            <div class="row">
+                <div>
+                    <label>Model</label>
+                    <select id="model">
+                        <option value="gpt-4o-mini">GPT-4o-mini</option>
+                        <option value="claude-haiku-4-5-20251001">Claude Haiku</option>
+                        <option value="claude-sonnet-4-20250514">Claude Sonnet</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Max Depth</label>
+                    <select id="maxDepth">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                    </select>
+                </div>
+            </div>
+            
+            <label>Query</label>
+            <input type="text" id="query" placeholder="What is the secret password hidden in this text?">
+            
+            <label>Context (paste text or load file)</label>
+            <textarea id="context" placeholder="Paste your context here..."></textarea>
+            
+            <div style="display: flex; gap: 10px;">
+                <button onclick="loadSampleContext('needle')">Load Needle Test</button>
+                <button onclick="loadSampleContext('codeqa')" class="secondary">Load CodeQA</button>
+                <input type="file" id="fileInput" style="display: none;" onchange="loadFile(event)">
+                <button onclick="document.getElementById('fileInput').click()" class="secondary">Load File</button>
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+            <button onclick="startTrace()" id="startBtn">▶ Start Trace</button>
+            <button onclick="stopTrace()" class="danger" id="stopBtn" disabled>⏹ Stop</button>
+        </div>
+        
+        <div class="trace-section" id="traceSection">
+            <div class="trace-header">
+                <h2>Execution Trace</h2>
+                <button onclick="clearTrace()" class="secondary">Clear</button>
+            </div>
+            
+            <div class="status-bar" id="statusBar">
+                <div class="status-item">Status: <span id="statusText">Idle</span></div>
+                <div class="status-item">Steps: <span id="stepCount">0</span></div>
+                <div class="status-item">Tokens: <span id="tokenCount">0</span></div>
+            </div>
+            
+            <div id="steps"></div>
+            
+            <div id="pendingApproval" class="hidden">
+                <div class="step">
+                    <div class="step-header">
+                        <span><span class="step-type pending">PENDING</span> Awaiting Approval</span>
+                    </div>
+                    <div class="step-content">
+                        <h4>Proposed Action</h4>
+                        <pre id="pendingAction"></pre>
+                        
+                        <h4>Edit (optional)</h4>
+                        <textarea id="editAction" style="min-height: 100px;"></textarea>
+                        
+                        <div class="approval-buttons">
+                            <button onclick="approveStep()">✓ Approve</button>
+                            <button onclick="approveStep(true)" class="secondary">✓ Approve Edited</button>
+                            <button onclick="skipStep()" class="secondary">⏭ Skip</button>
+                            <button onclick="stopTrace()" class="danger">✕ Stop</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="finalAnswer" class="hidden">
+                <h3>✓ Final Answer</h3>
+                <pre id="finalAnswerText"></pre>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let ws = null;
+        let stepNumber = 0;
+        let totalTokens = 0;
+        
+        const samples = {
+            needle: {
+                query: "What is the secret password hidden in this text?",
+                context: null  // Will be loaded from file
+            },
+            codeqa: {
+                query: null,  // Will be loaded from file
+                context: null
+            }
+        };
+        
+        async function loadSampleContext(type) {
+            try {
+                if (type === 'needle') {
+                    const resp = await fetch('/api/sample/needle');
+                    const data = await resp.json();
+                    document.getElementById('query').value = "What is the secret password hidden in this text?";
+                    document.getElementById('context').value = data.context;
+                } else if (type === 'codeqa') {
+                    const resp = await fetch('/api/sample/codeqa');
+                    const data = await resp.json();
+                    document.getElementById('query').value = data.query;
+                    document.getElementById('context').value = data.context;
+                }
+            } catch (e) {
+                alert('Failed to load sample: ' + e.message);
+            }
+        }
+        
+        function loadFile(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    document.getElementById('context').value = e.target.result;
+                };
+                reader.readAsText(file);
+            }
+        }
+        
+        function startTrace() {
+            const model = document.getElementById('model').value;
+            const maxDepth = parseInt(document.getElementById('maxDepth').value);
+            const query = document.getElementById('query').value;
+            const context = document.getElementById('context').value;
+            
+            if (!query || !context) {
+                alert('Please enter a query and context');
+                return;
+            }
+            
+            clearTrace();
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            document.getElementById('statusText').textContent = 'Connecting...';
+            
+            ws = new WebSocket(`ws://${location.host}/ws`);
+            
+            ws.onopen = () => {
+                document.getElementById('statusText').textContent = 'Running';
+                ws.send(JSON.stringify({
+                    type: 'start',
+                    model,
+                    maxDepth,
+                    query,
+                    context
+                }));
+            };
+            
+            ws.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                handleMessage(msg);
+            };
+            
+            ws.onclose = () => {
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+                if (document.getElementById('statusText').textContent === 'Running') {
+                    document.getElementById('statusText').textContent = 'Disconnected';
+                }
+            };
+            
+            ws.onerror = (err) => {
+                console.error('WebSocket error:', err);
+                document.getElementById('statusText').textContent = 'Error';
+            };
+        }
+        
+        function handleMessage(msg) {
+            switch (msg.type) {
+                case 'step':
+                    addStep(msg);
+                    break;
+                case 'pending':
+                    showPendingApproval(msg);
+                    break;
+                case 'result':
+                    addResult(msg);
+                    break;
+                case 'final':
+                    showFinalAnswer(msg);
+                    break;
+                case 'error':
+                    showError(msg);
+                    break;
+                case 'tokens':
+                    totalTokens += msg.count;
+                    document.getElementById('tokenCount').textContent = totalTokens.toLocaleString();
+                    break;
+            }
+        }
+        
+        function addStep(msg) {
+            stepNumber++;
+            document.getElementById('stepCount').textContent = stepNumber;
+            
+            const stepsDiv = document.getElementById('steps');
+            const stepDiv = document.createElement('div');
+            stepDiv.className = 'step';
+            stepDiv.innerHTML = `
+                <div class="step-header" onclick="this.nextElementSibling.classList.toggle('hidden')">
+                    <span><span class="step-type ${msg.mode}">${msg.mode.toUpperCase()}</span> Step ${stepNumber}: ${msg.summary || ''}</span>
+                    <span>▼</span>
+                </div>
+                <div class="step-content hidden">
+                    <h4>LLM Response</h4>
+                    <pre>${escapeHtml(JSON.stringify(msg.action, null, 2))}</pre>
+                </div>
+            `;
+            stepsDiv.appendChild(stepDiv);
+        }
+        
+        function addResult(msg) {
+            const stepsDiv = document.getElementById('steps');
+            const lastStep = stepsDiv.lastElementChild;
+            if (lastStep) {
+                const content = lastStep.querySelector('.step-content');
+                content.innerHTML += `
+                    <h4>Result</h4>
+                    <pre>${escapeHtml(typeof msg.result === 'string' ? msg.result.substring(0, 2000) : JSON.stringify(msg.result, null, 2))}</pre>
+                `;
+            }
+        }
+        
+        function showPendingApproval(msg) {
+            document.getElementById('pendingApproval').classList.remove('hidden');
+            document.getElementById('pendingAction').textContent = JSON.stringify(msg.action, null, 2);
+            document.getElementById('editAction').value = JSON.stringify(msg.action, null, 2);
+            document.getElementById('statusText').textContent = 'Awaiting Approval';
+        }
+        
+        function approveStep(useEdited = false) {
+            document.getElementById('pendingApproval').classList.add('hidden');
+            document.getElementById('statusText').textContent = 'Running';
+            
+            const action = useEdited 
+                ? JSON.parse(document.getElementById('editAction').value)
+                : JSON.parse(document.getElementById('pendingAction').textContent);
+            
+            ws.send(JSON.stringify({
+                type: 'approve',
+                action
+            }));
+        }
+        
+        function skipStep() {
+            document.getElementById('pendingApproval').classList.add('hidden');
+            document.getElementById('statusText').textContent = 'Running';
+            ws.send(JSON.stringify({ type: 'skip' }));
+        }
+        
+        function showFinalAnswer(msg) {
+            document.getElementById('finalAnswer').classList.remove('hidden');
+            document.getElementById('finalAnswerText').textContent = msg.answer;
+            document.getElementById('statusText').textContent = 'Complete';
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+        }
+        
+        function showError(msg) {
+            const stepsDiv = document.getElementById('steps');
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'step';
+            errorDiv.innerHTML = `
+                <div class="step-header" style="background: #da3633;">
+                    <span>❌ Error</span>
+                </div>
+                <div class="step-content">
+                    <pre style="color: #f85149;">${escapeHtml(msg.error)}</pre>
+                </div>
+            `;
+            stepsDiv.appendChild(errorDiv);
+            document.getElementById('statusText').textContent = 'Error';
+        }
+        
+        function stopTrace() {
+            if (ws) {
+                ws.send(JSON.stringify({ type: 'stop' }));
+                ws.close();
+            }
+            document.getElementById('pendingApproval').classList.add('hidden');
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('statusText').textContent = 'Stopped';
+        }
+        
+        function clearTrace() {
+            stepNumber = 0;
+            totalTokens = 0;
+            document.getElementById('steps').innerHTML = '';
+            document.getElementById('stepCount').textContent = '0';
+            document.getElementById('tokenCount').textContent = '0';
+            document.getElementById('finalAnswer').classList.add('hidden');
+            document.getElementById('pendingApproval').classList.add('hidden');
+            document.getElementById('statusText').textContent = 'Idle';
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

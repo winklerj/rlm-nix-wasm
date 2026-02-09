@@ -55,7 +55,11 @@ def parse_llm_output(raw: str) -> LLMAction:
             )
             for op_data in data["operations"]
         ]
-        return CommitPlan(operations=operations, output=data["output"])
+        # Default output to last operation's bind if not specified
+        output = data.get("output")
+        if not output and operations:
+            output = operations[-1].bind or "result"
+        return CommitPlan(operations=operations, output=output or "result")
     elif mode == "final":
         return FinalAnswer(answer=data["answer"])
     else:

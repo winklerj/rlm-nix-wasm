@@ -14,6 +14,25 @@ from rlm.config import load_config
 console = Console(stderr=True)
 
 
+# Pricing per million tokens (as of Feb 2025)
+MODEL_PRICING = {
+    "claude-haiku-4-5-20251001": {"input": 1.00, "output": 5.00},
+    "claude-sonnet-4-20250514": {"input": 3.00, "output": 15.00},
+    "claude-3-5-haiku-20241022": {"input": 1.00, "output": 5.00},
+    "claude-3-5-sonnet-20241022": {"input": 3.00, "output": 15.00},
+    "gpt-4o-mini": {"input": 0.15, "output": 0.60},
+    "gpt-4o": {"input": 2.50, "output": 10.00},
+}
+
+
+def estimate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
+    """Estimate cost in dollars based on model and token counts."""
+    pricing = MODEL_PRICING.get(model, {"input": 1.00, "output": 5.00})
+    input_cost = (input_tokens / 1_000_000) * pricing["input"]
+    output_cost = (output_tokens / 1_000_000) * pricing["output"]
+    return input_cost + output_cost
+
+
 @click.group()
 @click.version_option(version="0.1.0")
 def main() -> None:
@@ -72,7 +91,13 @@ def run(
     click.echo(answer)
 
     if verbose:
+        input_tokens, output_tokens = orchestrator.get_total_token_usage()
+        total_tokens = input_tokens + output_tokens
+        cost = estimate_cost(config.model, input_tokens, output_tokens)
+        
         console.print(f"\n[dim]Completed in {elapsed:.1f}s[/dim]")
+        console.print(f"[dim]Tokens: {input_tokens:,} in + {output_tokens:,} out = {total_tokens:,} total[/dim]")
+        console.print(f"[dim]Estimated cost: ${cost:.4f}[/dim]")
 
 
 @main.group()
