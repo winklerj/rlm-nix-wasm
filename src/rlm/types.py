@@ -90,7 +90,7 @@ class Context(BaseModel):
 
 class RLMConfig(BaseModel):
     """Configuration for an RLM run."""
-    model: str = "gpt-4o-mini"
+    model: str = "gpt-5-nano-2025-08-07"
     max_explore_steps: int = 20
     max_commit_cycles: int = 5
     max_recursion_depth: int = 1
