@@ -95,7 +95,7 @@ class RLMConfig(BaseModel):
     max_commit_cycles: int = 5
     max_recursion_depth: int = 1
     max_parallel_jobs: int = 4
-    temperature: float = 0.0
+    temperature: float = 1.0
     cache_dir: Path = Path.home() / ".cache" / "rlm-secure"
     use_nix: bool = False
     verbose: bool = False
