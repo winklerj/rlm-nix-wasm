@@ -1,0 +1,10 @@
+2024-01-15 10:00:01 INFO  user=alice action=login ip=192.168.1.10
+2024-01-15 10:00:15 INFO  user=bob action=login ip=192.168.1.11
+2024-01-15 10:01:02 ERROR user=alice action=upload msg="file too large"
+2024-01-15 10:01:45 INFO  user=charlie action=login ip=192.168.1.12
+2024-01-15 10:02:30 INFO  user=alice action=download file=report.pdf
+2024-01-15 10:03:00 ERROR user=bob action=upload msg="permission denied"
+2024-01-15 10:03:15 INFO  user=alice action=logout
+2024-01-15 10:04:00 INFO  user=dave action=login ip=192.168.1.13
+2024-01-15 10:05:00 ERROR user=charlie action=delete msg="not found"
+2024-01-15 10:06:00 INFO  user=bob action=logout

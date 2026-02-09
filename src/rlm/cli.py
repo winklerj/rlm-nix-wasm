@@ -50,6 +50,13 @@ def estimate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
     return input_cost + output_cost
 
 
+@click.group()
+@click.version_option(version="0.1.0")
+def main() -> None:
+    """Sandboxed Recursive Language Models with Nix."""
+    pass
+
+
 @main.command("list-model-pricing")
 def list_model_pricing() -> None:
     """List known model pricing."""
@@ -73,13 +80,6 @@ def list_model_pricing() -> None:
         )
 
     console.print(table)
-
-
-@click.group()
-@click.version_option(version="0.1.0")
-def main() -> None:
-    """Sandboxed Recursive Language Models with Nix."""
-    pass
 
 
 @main.command()
