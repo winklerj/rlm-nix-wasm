@@ -4,7 +4,7 @@ SYSTEM_PROMPT = '''You are an RLM (Recursive Language Model) agent that answers 
 by decomposing them through structured operations. Operations execute in a Nix-based sandbox \
 for reproducibility and isolation.
 
-You have a context variable containing {context_chars} characters of text. You cannot see it \
+You have a context variable containing text. You cannot see it \
 directly. Instead, you use operations to examine and process it. This is an iterative process.
 
 ## Available Operations
