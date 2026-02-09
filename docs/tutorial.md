@@ -84,6 +84,14 @@ Time: 4.2s
 
 This shows the explore steps (the LLM peeking at the data), the commit plan (the operations it chose), and the final answer.
 
+For a complete machine-readable record of every LLM message and operation, add `--trace`:
+
+```bash
+rlm run -q "How many ERROR lines are in this log?" -c sample.log --trace trace.json
+```
+
+This writes a JSON file you can inspect after the run. See the [How-to Guides](how-to-guides.md#how-to-trace-execution) for details.
+
 ## Try a more complex question
 
 ```bash

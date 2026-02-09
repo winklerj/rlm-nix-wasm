@@ -85,6 +85,35 @@ export RLM_MAX_PARALLEL_JOBS=8
 rlm run -q "Analyze each chapter" -c book.txt
 ```
 
+## How to trace execution
+
+Use `--trace` to write a detailed JSON record of every step in the run -- LLM messages in and out, explore operations with full results, commit plans with per-operation detail, and the full recursion tree:
+
+```bash
+rlm run -q "How many errors?" -c server.log --trace trace.json
+```
+
+The trace is written after the run completes. Inspect it with:
+
+```bash
+python3 -m json.tool trace.json | less
+```
+
+Or use `jq` to drill into specific parts:
+
+```bash
+# Show each LLM round-trip
+jq '.root.llm_calls[] | {call_number, elapsed_s, input_tokens, output_tokens}' trace.json
+
+# Show explore steps
+jq '.root.explore_steps[] | {step_number, operation_op, cached}' trace.json
+
+# Show recursive child calls
+jq '.root.children[] | {trace_id, depth, query, elapsed_s}' trace.json
+```
+
+`--trace` works independently of `--verbose` -- you can use both together or either alone. See the [Reference](reference.md) for the full trace JSON schema.
+
 ## How to manage the cache
 
 View cache statistics (entry count, total size, location):

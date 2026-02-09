@@ -21,6 +21,7 @@ rlm run [OPTIONS]
 | `--max-depth` | | int | `1` | Maximum recursion depth |
 | `--use-nix` | | flag | `false` | Compile operations to Nix derivations |
 | `--verbose` | `-v` | flag | `false` | Show model name, context size, operation trace, and timing |
+| `--trace` | | path | none | Write a full execution trace (JSON) to the given file path |
 
 ### `rlm cache stats`
 
@@ -201,6 +202,8 @@ src/rlm/
   config.py          # Configuration from env vars / CLI
   cli.py             # Click CLI (rlm run, rlm cache)
   orchestrator.py    # Main explore/commit loop
+  timing.py          # Per-component timing instrumentation
+  trace.py           # Execution trace recording (--trace)
   llm/
     client.py        # LiteLLM wrapper
     parser.py        # JSON response parsing
@@ -219,6 +222,79 @@ src/rlm/
     store.py         # nix-store wrapper
     templates.py     # Nix derivation templates
 ```
+
+### Execution trace format
+
+The `--trace` option writes a JSON file with the following structure:
+
+```json
+{
+  "version": "1.0",
+  "timestamp": "2026-02-09T18:30:00+00:00",
+  "root": {
+    "trace_id": 0,
+    "depth": 0,
+    "query": "How many errors?",
+    "context_length": 45230,
+    "model": "gpt-5-nano",
+    "elapsed_s": 12.3,
+    "llm_calls": [
+      {
+        "call_number": 1,
+        "timestamp": 1739105400.0,
+        "elapsed_s": 1.2,
+        "model": "gpt-5-nano",
+        "input_tokens": 1520,
+        "output_tokens": 85,
+        "user_message": "Begin. The context variable is available.",
+        "assistant_message": "{\"mode\":\"explore\", ...}"
+      }
+    ],
+    "explore_steps": [
+      {
+        "step_number": 1,
+        "timestamp": 1739105401.0,
+        "elapsed_s": 0.002,
+        "operation_op": "grep",
+        "operation_args": {"input": "context", "pattern": "ERROR"},
+        "operation_bind": "errors",
+        "result_value": "line1\nline2\nline3",
+        "cached": false,
+        "error": null
+      }
+    ],
+    "commit_cycles": [
+      {
+        "cycle_number": 1,
+        "timestamp": 1739105409.0,
+        "output_variable": "total",
+        "operations": [
+          {
+            "index": 1,
+            "operation_op": "chunk",
+            "operation_args": {"input": "context", "n": 3},
+            "operation_bind": "chunks",
+            "elapsed_s": 0.005,
+            "result_value": "[...]",
+            "error": null,
+            "child_trace_ids": []
+          }
+        ],
+        "result_value": "7"
+      }
+    ],
+    "final_answer": {
+      "timestamp": 1739105410.0,
+      "answer": "There are 7 errors.",
+      "total_explore_steps": 2,
+      "total_commit_cycles": 1
+    },
+    "children": []
+  }
+}
+```
+
+The `root` is an `OrchestratorTrace` node. Recursive calls (`rlm_call`, `map`) produce child nodes nested under `children`, each with the same structure. The `child_trace_ids` field in commit operations cross-references which children were spawned by that operation.
 
 ### Execution flow
 
