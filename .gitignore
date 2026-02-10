@@ -7,4 +7,6 @@ build/
 data/
 .env
 .wasm/
+traces/
+.hypothesis/
 
