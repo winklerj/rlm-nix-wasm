@@ -90,7 +90,7 @@ class Context(BaseModel):
 
 class RLMConfig(BaseModel):
     """Configuration for an RLM run."""
-    model: str = "claude-opus-4-6"
+    model: str = "claude-opus-4-5"
     child_model: str | None = None
     max_explore_steps: int = 20
     max_commit_cycles: int = 5
@@ -100,3 +100,7 @@ class RLMConfig(BaseModel):
     cache_dir: Path = Path.home() / ".cache" / "rlm-secure"
     use_nix: bool = False
     verbose: bool = False
+    # Wasm sandbox settings for eval operations
+    wasm_python_path: Path | None = None  # Path to python.wasm binary
+    wasm_fuel: int = 10_000_000_000  # CPU fuel limit (CPython WASI needs ~2B for startup)
+    wasm_memory_mb: int = 256  # Memory limit in MB

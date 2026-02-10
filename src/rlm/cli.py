@@ -91,6 +91,8 @@ def list_model_pricing() -> None:
 @click.option("--max-explore", default=None, type=int, help="Max explore steps.")
 @click.option("--max-depth", default=None, type=int, help="Max recursion depth.")
 @click.option("--use-nix", is_flag=True, default=False, help="Use Nix for sandboxing.")
+@click.option("--wasm-python", type=click.Path(), default=None,
+              help="Path to python.wasm for sandboxed code execution.")
 @click.option("--verbose", "-v", is_flag=True, default=False, help="Verbose output.")
 @click.option("--trace", "trace_path", type=click.Path(), default=None,
               help="Write execution trace JSON to PATH.")
@@ -102,6 +104,7 @@ def run(
     max_explore: int | None,
     max_depth: int | None,
     use_nix: bool,
+    wasm_python: str | None,
     verbose: bool,
     trace_path: str | None,
 ) -> None:
@@ -112,6 +115,7 @@ def run(
         max_explore_steps=max_explore,
         max_recursion_depth=max_depth,
         use_nix=use_nix,
+        wasm_python_path=Path(wasm_python) if wasm_python else None,
         verbose=verbose,
     )
 
@@ -131,6 +135,8 @@ def run(
         console.print(f"[dim]Context: {len(context_text):,} chars[/dim]")
         if config.use_nix:
             console.print("[dim]Nix sandboxing: enabled[/dim]")
+        if config.wasm_python_path:
+            console.print(f"[dim]Wasm sandbox: {config.wasm_python_path}[/dim]")
 
     from rlm.orchestrator import RLMOrchestrator
     from rlm.trace import TraceCollector

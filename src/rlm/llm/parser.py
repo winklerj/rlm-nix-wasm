@@ -36,6 +36,9 @@ def parse_llm_output(raw: str) -> LLMAction:
     except json.JSONDecodeError as e:
         raise ParseError(f"Invalid JSON from LLM: {e}\nRaw output:\n{raw}")
 
+    if not isinstance(data, dict):
+        raise ParseError(f"Expected JSON object, got {type(data).__name__}")
+
     mode = data.get("mode")
     if mode == "explore":
         op_data = data["operation"]

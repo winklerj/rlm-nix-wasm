@@ -62,6 +62,63 @@ To enable Nix by default:
 export RLM_USE_NIX=true
 ```
 
+## How to enable Wasm eval
+
+The `eval` operation lets the LLM write Python code that runs in a WebAssembly sandbox. It is only available when a `python.wasm` binary is configured.
+
+### Setup
+
+1. Install the `wasmtime` Python package:
+
+```bash
+pip install wasmtime
+```
+
+2. Download a CPython WASI binary (~25MB):
+
+```bash
+curl -L -o python.wasm \
+  "https://github.com/vmware-labs/webassembly-language-runtimes/releases/download/python/3.12.0%2B20231211-040d5a6/python-3.12.0.wasm"
+```
+
+3. Pass the path via CLI flag or environment variable:
+
+```bash
+# CLI flag
+rlm run -q "What are the unique user IDs?" -c server.log --wasm-python ./python.wasm
+
+# Environment variable
+export RLM_WASM_PYTHON_PATH=./python.wasm
+rlm run -q "What are the unique user IDs?" -c server.log
+```
+
+### Configuring resource limits
+
+The sandbox enforces CPU and memory limits:
+
+```bash
+# CPU fuel limit (higher = more computation allowed, default: 10000000000)
+export RLM_WASM_FUEL=20000000000
+
+# Memory limit in MB (default: 256)
+export RLM_WASM_MEMORY_MB=512
+```
+
+### When to expect eval usage
+
+The LLM uses `eval` only when the built-in DSL operations (slice, grep, count, chunk, split) cannot express the needed logic. Common eval use cases:
+
+- Complex regex extraction (e.g., parsing structured patterns)
+- Arithmetic and aggregation (sums, averages, percentages)
+- Conditional filtering with multiple criteria
+- Data transformation (JSON parsing, reformatting)
+
+The system prompt explicitly steers the LLM toward DSL operations first, falling back to eval only when necessary.
+
+### Conditional availability
+
+When `--wasm-python` is not set, the eval operation is not mentioned in the system prompt and the LLM will not attempt to use it. Existing DSL-only workflows are completely unaffected.
+
 ## How to increase recursion depth
 
 By default, rlm-secure allows 1 level of recursion (the root call can spawn sub-calls, but sub-calls cannot spawn further sub-calls). For deeply nested problems, increase the limit:

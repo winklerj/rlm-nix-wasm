@@ -14,7 +14,7 @@ from rlm.cache.store import CacheStore
 from rlm.evaluator.lightweight import LightweightEvaluator
 from rlm.llm.client import LLMClient
 from rlm.llm.parser import ParseError, parse_llm_output
-from rlm.llm.prompts import SYSTEM_PROMPT
+from rlm.llm.prompts import EVAL_APPROACH_ADDENDUM, EVAL_OPS_ADDENDUM, SYSTEM_PROMPT
 from rlm.timing import TimingProfile
 from rlm.trace import CommitOperationTrace, ExecutionTrace, OrchestratorTrace, TraceCollector
 from rlm.types import (
@@ -48,7 +48,20 @@ class RLMOrchestrator:
                               trace=self.trace_collector,
                               trace_node=self.trace_node)
         self.cache = CacheStore(config.cache_dir)
-        self.evaluator = LightweightEvaluator(cache=self.cache, profile=self.profile)
+
+        # Initialize Wasm sandbox for eval operations (lazy load)
+        wasm_sandbox = None
+        if config.wasm_python_path:
+            from rlm.evaluator.wasm_sandbox import WasmSandbox
+            wasm_sandbox = WasmSandbox(
+                python_wasm_path=config.wasm_python_path,
+                fuel=config.wasm_fuel,
+                memory_mb=config.wasm_memory_mb,
+            )
+
+        self.evaluator = LightweightEvaluator(
+            cache=self.cache, profile=self.profile, wasm_sandbox=wasm_sandbox,
+        )
         self.parent = parent
         self.child_orchestrators: list[RLMOrchestrator] = []
 
@@ -85,9 +98,15 @@ class RLMOrchestrator:
         ctx = Context(content=context_text)
         bindings: dict[str, str] = {"context": ctx.content}
 
+        # Conditionally include eval docs when Wasm sandbox is available
+        eval_ops = EVAL_OPS_ADDENDUM if self.config.wasm_python_path else ""
+        eval_approach = EVAL_APPROACH_ADDENDUM if self.config.wasm_python_path else ""
+
         system = SYSTEM_PROMPT.format(
             context_chars=f"{len(ctx.content):,}",
             query=query,
+            eval_ops=eval_ops,
+            eval_approach=eval_approach,
         )
         self.llm.set_system_prompt(system)
 

@@ -21,6 +21,7 @@ rlm run [OPTIONS]
 | `--max-explore` | | int | `20` | Maximum explore steps before forcing a commit |
 | `--max-depth` | | int | `1` | Maximum recursion depth |
 | `--use-nix` | | flag | `false` | Compile operations to Nix derivations |
+| `--wasm-python` | | path | none | Path to python.wasm for sandboxed code execution |
 | `--verbose` | `-v` | flag | `false` | Show model name, context size, operation trace, and timing |
 | `--trace` | | path | none | Write a full execution trace (JSON) to the given file path |
 
@@ -61,6 +62,9 @@ All settings can be configured via environment variables. CLI flags take precede
 | Cache directory | `RLM_CACHE_DIR` | -- | `~/.cache/rlm-secure` |
 | Enable Nix | `RLM_USE_NIX` | `--use-nix` | `false` |
 | Verbose output | `RLM_VERBOSE` | `--verbose` | `false` |
+| Wasm python.wasm path | `RLM_WASM_PYTHON_PATH` | `--wasm-python` | none |
+| Wasm fuel limit | `RLM_WASM_FUEL` | -- | `10000000000` |
+| Wasm memory limit (MB) | `RLM_WASM_MEMORY_MB` | -- | `256` |
 
 LLM provider API keys are set via their standard environment variables (e.g., `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`). See the [litellm provider documentation](https://docs.litellm.ai/docs/providers) for the full list.
 
@@ -139,6 +143,31 @@ Merge multiple results using a strategy.
 - `"sum"`: Parses each input as a number and returns the sum.
 - `"vote"`: Returns the most common value (majority vote).
 
+#### `eval`
+
+Run Python code in a Wasm sandbox. Only available when `--wasm-python` is configured.
+
+| Argument | Type | Description |
+|----------|------|-------------|
+| `code` | string | Python source code to execute |
+| `inputs` | list | Variable names to inject into the sandbox (optional; defaults to all bindings) |
+
+The code runs inside a WebAssembly (WASI) sandbox with pre-loaded variables from `inputs`. Set a `result` variable or use `print()` to produce output. All Python stdlib modules are available (network and filesystem access are blocked by the sandbox).
+
+```json
+{
+  "mode": "explore",
+  "operation": {
+    "op": "eval",
+    "args": {
+      "code": "import re\nusers = set(re.findall(r'User: (\\d+)', context))\nresult = str(len(users))",
+      "inputs": ["context"]
+    },
+    "bind": "unique_user_count"
+  }
+}
+```
+
 ### Commit-mode operations
 
 All explore-mode operations are also available in commit mode. Commit mode adds:
@@ -213,9 +242,11 @@ src/rlm/
   ops/
     text.py          # Text operations (slice, grep, count, split, chunk)
     recursive.py     # Combine operation
+    eval_op.py       # Eval operation stub (dispatch handled by evaluator)
   evaluator/
     lightweight.py   # In-process execution with caching
     sandbox.py       # Bubblewrap sandbox (optional)
+    wasm_sandbox.py  # Wasm sandbox for eval (wasmtime + python.wasm)
   cache/
     store.py         # Content-addressed filesystem cache
   nix/

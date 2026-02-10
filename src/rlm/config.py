@@ -21,6 +21,9 @@ def load_config(**overrides: Any) -> RLMConfig:
         "RLM_CACHE_DIR": ("cache_dir", Path),
         "RLM_USE_NIX": ("use_nix", lambda x: x.lower() in ("1", "true", "yes")),
         "RLM_VERBOSE": ("verbose", lambda x: x.lower() in ("1", "true", "yes")),
+        "RLM_WASM_PYTHON_PATH": ("wasm_python_path", Path),
+        "RLM_WASM_FUEL": ("wasm_fuel", int),
+        "RLM_WASM_MEMORY_MB": ("wasm_memory_mb", int),
     }
 
     config_data: dict[str, Any] = {}

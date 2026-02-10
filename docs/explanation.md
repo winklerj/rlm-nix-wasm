@@ -20,6 +20,20 @@ The original RLM approach (from the [alexzhang13/rlm](https://github.com/alexzha
 
 rlm-secure replaces arbitrary code with a structured DSL -- a fixed set of pure operations like `slice`, `grep`, `count`, `chunk`, and `combine`. Because these operations are pure functions (output depends only on input, with no side effects), they can be safely cached and parallelized.
 
+### The eval escape hatch
+
+While the DSL covers most common tasks, sometimes the LLM needs arbitrary logic that the fixed operations can't express (complex regex, arithmetic, conditional filtering). The `eval` operation provides a controlled middle ground: the LLM writes Python code, but it runs inside a WebAssembly (WASI) sandbox with hardware-enforced isolation.
+
+| Property | DSL operations | Eval (Wasm sandbox) |
+|----------|:-:|:-:|
+| Isolation | Pure functions, no side effects | Wasm memory isolation, no FS/network |
+| Caching | Deterministic, content-addressed | Deterministic (same code + inputs = same key) |
+| Speed | In-process, ~microseconds | Wasm startup + execution, ~100ms-1s |
+| Expressiveness | Fixed operation set | Full Python stdlib |
+| Security model | No code execution | Hardware-level sandbox |
+
+The system prompt steers the LLM toward DSL operations first, only falling back to eval when necessary. This keeps the common path fast and cacheable while allowing arbitrary logic when needed.
+
 ## The explore/commit protocol
 
 The protocol has two modes because they serve different purposes:
@@ -63,6 +77,7 @@ rlm-secure uses multiple layers of protection:
 | **Content-addressed cache** | Yes | Prevents redundant computation. Cache keys are deterministic. |
 | **Recursion depth limit** | Yes | Prevents infinite recursion. Configurable, defaults to 1. |
 | **Operation timeout** | Yes | Each sandboxed operation times out after 30 seconds. |
+| **Wasm sandbox** | Optional | WebAssembly sandbox for eval operations. Hardware-level memory isolation, no FS/network. |
 | **Bubblewrap sandbox** | Optional | Lightweight Linux container with read-only filesystem and no network. |
 | **Nix derivation sandbox** | Optional | Full build-time isolation via Nix. No network, no host filesystem access. |
 
@@ -77,3 +92,5 @@ The outermost layer (structured DSL) is the most important. Even without any san
 **Nix overhead vs. isolation**: Nix provides stronger isolation than in-process execution, but adds latency for derivation compilation and build. For small operations, the overhead may exceed the operation time. Use Nix when security matters more than speed.
 
 **Cache size vs. speed**: The cache grows without bound. For long-running deployments, periodic `rlm cache clear` or a custom `RLM_CACHE_DIR` on a tmpfs may be appropriate.
+
+**DSL simplicity vs. eval flexibility**: The DSL is fast, cacheable, and easy to reason about, but limited in expressiveness. Eval provides full Python but adds ~100ms-1s per invocation due to Wasm startup overhead. The system prompt steers the LLM to prefer DSL operations, using eval only as a fallback for logic the DSL cannot express.
