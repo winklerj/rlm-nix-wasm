@@ -23,7 +23,7 @@ rlm run [OPTIONS]
 | `--use-nix` | | flag | `false` | Compile operations to Nix derivations |
 | `--wasm-python` | | path | none | Path to python.wasm for sandboxed code execution |
 | `--verbose` | `-v` | flag | `false` | Show model name, context size, operation trace, and timing |
-| `--trace` | | path | none | Write a full execution trace (JSON) to the given file path |
+| `--trace` | | flag | `false` | Write execution trace (JSON) to `traces/` directory with auto-generated timestamp filename |
 
 ### `rlm cache stats`
 

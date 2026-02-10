@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 import click
@@ -94,8 +95,8 @@ def list_model_pricing() -> None:
 @click.option("--wasm-python", type=click.Path(), default=None,
               help="Path to python.wasm for sandboxed code execution.")
 @click.option("--verbose", "-v", is_flag=True, default=False, help="Verbose output.")
-@click.option("--trace", "trace_path", type=click.Path(), default=None,
-              help="Write execution trace JSON to PATH.")
+@click.option("--trace", is_flag=True, default=False,
+              help="Write execution trace JSON to traces/ directory.")
 def run(
     query: str,
     context: str | None,
@@ -106,7 +107,7 @@ def run(
     use_nix: bool,
     wasm_python: str | None,
     verbose: bool,
-    trace_path: str | None,
+    trace: bool,
 ) -> None:
     """Run an RLM query against a context."""
     config = load_config(
@@ -141,7 +142,7 @@ def run(
     from rlm.orchestrator import RLMOrchestrator
     from rlm.trace import TraceCollector
 
-    trace_collector = TraceCollector(enabled=trace_path is not None)
+    trace_collector = TraceCollector(enabled=trace)
 
     start = time.monotonic()
     orchestrator = RLMOrchestrator(config, trace_collector=trace_collector)
@@ -163,10 +164,13 @@ def run(
         merged_profile = orchestrator.get_total_profile()
         TimingProfile.print_summary(merged_profile, elapsed, console)
 
-    if trace_path is not None:
-        trace = orchestrator.get_trace()
-        trace_file = Path(trace_path)
-        TraceCollector.write_trace(trace, trace_file)
+    if trace:
+        execution_trace = orchestrator.get_trace()
+        now = datetime.now(timezone.utc)
+        trace_dir = Path("traces")
+        trace_dir.mkdir(exist_ok=True)
+        trace_file = trace_dir / f"{now.strftime('%Y-%m-%dT%H-%M-%S')}.{now.strftime('%f')[:3]}.json"
+        TraceCollector.write_trace(execution_trace, trace_file)
         console.print(f"[dim]Trace written to {trace_file}[/dim]")
 
 

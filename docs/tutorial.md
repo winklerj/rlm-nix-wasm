@@ -87,10 +87,10 @@ This shows the explore steps (the LLM peeking at the data), the commit plan (the
 For a complete machine-readable record of every LLM message and operation, add `--trace`:
 
 ```bash
-rlm run -q "How many ERROR lines are in this log?" -c sample.log --trace trace.json
+rlm run -q "How many ERROR lines are in this log?" -c sample.log --trace
 ```
 
-This writes a JSON file you can inspect after the run. See the [How-to Guides](how-to-guides.md#how-to-trace-execution) for details.
+This writes a JSON file to the `traces/` directory that you can inspect after the run. See the [How-to Guides](how-to-guides.md#how-to-trace-execution) for details.
 
 ## Try a more complex question
 

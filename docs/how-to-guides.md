@@ -163,26 +163,28 @@ rlm run -q "Analyze each chapter" -c book.txt
 Use `--trace` to write a detailed JSON record of every step in the run -- LLM messages in and out, explore operations with full results, commit plans with per-operation detail, and the full recursion tree:
 
 ```bash
-rlm run -q "How many errors?" -c server.log --trace trace.json
+rlm run -q "How many errors?" -c server.log --trace
 ```
 
-The trace is written after the run completes. Inspect it with:
+The trace file is written to the `traces/` directory in the current working directory, with a timestamp filename like `traces/2026-02-10T14-30-45.123.json`. The directory is created automatically if it doesn't exist. Each run produces a new file, so you can compare traces across runs without worrying about overwriting.
+
+Inspect the latest trace with:
 
 ```bash
-python3 -m json.tool trace.json | less
+python3 -m json.tool traces/*.json | less
 ```
 
 Or use `jq` to drill into specific parts:
 
 ```bash
-# Show each LLM round-trip
-jq '[.root.events[] | select(.type == "llm_call")] | .[] | {call_number, elapsed_s, input_tokens, output_tokens}' trace.json
+# Show each LLM round-trip (pick the trace file you want)
+jq '[.root.events[] | select(.type == "llm_call")] | .[] | {call_number, elapsed_s, input_tokens, output_tokens}' traces/2026-02-10T14-30-45.123.json
 
 # Show explore steps
-jq '[.root.events[] | select(.type == "explore_step")] | .[] | {step_number, operation_op, cached}' trace.json
+jq '[.root.events[] | select(.type == "explore_step")] | .[] | {step_number, operation_op, cached}' traces/2026-02-10T14-30-45.123.json
 
 # Show recursive child calls
-jq '.root.children[] | {trace_id, depth, query, elapsed_s}' trace.json
+jq '.root.children[] | {trace_id, depth, query, elapsed_s}' traces/2026-02-10T14-30-45.123.json
 ```
 
 `--trace` works independently of `--verbose` -- you can use both together or either alone. See the [Reference](reference.md) for the full trace JSON schema.

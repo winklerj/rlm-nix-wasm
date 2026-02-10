@@ -10,7 +10,7 @@ rlm-secure lets LLMs break down large-context problems into smaller recursive su
 pip install -e .
 export OPENAI_API_KEY=sk-...
 rlm run -q "How many unique users are in this log?" -c server.log
-rlm run -q "How many unique users are in this log?" -c server.log -v --trace trace.json
+rlm run -q "How many unique users are in this log?" -c server.log -v --trace
 rlm list-model-pricing
 ```
 
