@@ -27,6 +27,30 @@ class TestGrepCompilation:
         nix = compile_operation(op, FAKE_STORE)
         assert "\\$HOME" in nix
 
+    def test_pattern_passed_as_attribute(self):
+        """Pattern should be a Nix attribute, not inline in the shell script."""
+        op = Operation(op=OpType.GREP, args={"input": "context", "pattern": "test"})
+        nix = compile_operation(op, FAKE_STORE)
+        assert 'pattern = "test";' in nix
+        assert '"$pattern"' in nix
+
+    def test_escapes_nix_interpolation(self):
+        """${...} in patterns must not trigger Nix string interpolation."""
+        op = Operation(op=OpType.GREP, args={"input": "context", "pattern": "${builtins.readFile /etc/passwd}"})
+        nix = compile_operation(op, FAKE_STORE)
+        assert "\\${builtins.readFile" in nix
+        assert 'pattern = "' in nix
+
+    def test_escapes_double_quotes(self):
+        op = Operation(op=OpType.GREP, args={"input": "context", "pattern": 'say "hello"'})
+        nix = compile_operation(op, FAKE_STORE)
+        assert 'say \\"hello\\"' in nix
+
+    def test_escapes_backslashes(self):
+        op = Operation(op=OpType.GREP, args={"input": "context", "pattern": "a\\b"})
+        nix = compile_operation(op, FAKE_STORE)
+        assert "a\\\\b" in nix
+
 
 class TestSliceCompilation:
     def test_basic(self):
@@ -35,6 +59,17 @@ class TestSliceCompilation:
         assert "rlm-slice-" in nix
         assert "tail" in nix
         assert "head" in nix
+
+    def test_rejects_string_start(self):
+        """String values for start must be rejected to prevent shell injection."""
+        op = Operation(op=OpType.SLICE, args={"input": "context", "start": "0; id", "end": 100})
+        with pytest.raises(NixCompileError, match="must be an integer"):
+            compile_operation(op, FAKE_STORE)
+
+    def test_rejects_string_end(self):
+        op = Operation(op=OpType.SLICE, args={"input": "context", "start": 0, "end": "100; id"})
+        with pytest.raises(NixCompileError, match="must be an integer"):
+            compile_operation(op, FAKE_STORE)
 
 
 class TestCountCompilation:
@@ -57,6 +92,22 @@ class TestChunkCompilation:
         assert "rlm-chunk-" in nix
         assert "split" in nix
         assert "4" in nix
+
+    def test_rejects_string_n(self):
+        """String values for n must be rejected to prevent shell injection."""
+        op = Operation(op=OpType.CHUNK, args={"input": "context", "n": "1; curl evil.com"})
+        with pytest.raises(NixCompileError, match="must be an integer"):
+            compile_operation(op, FAKE_STORE)
+
+    def test_rejects_zero_n(self):
+        op = Operation(op=OpType.CHUNK, args={"input": "context", "n": 0})
+        with pytest.raises(NixCompileError, match="positive integer"):
+            compile_operation(op, FAKE_STORE)
+
+    def test_rejects_negative_n(self):
+        op = Operation(op=OpType.CHUNK, args={"input": "context", "n": -1})
+        with pytest.raises(NixCompileError, match="positive integer"):
+            compile_operation(op, FAKE_STORE)
 
 
 class TestCombineCompilation:

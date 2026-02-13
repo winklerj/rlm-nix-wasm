@@ -44,8 +44,8 @@ def compile_operation(op: Operation, store_paths: dict[str, str]) -> str:
 
     elif op.op == OpType.SLICE:
         input_path = store_paths[op.args["input"]]
-        start = op.args.get("start", 0)
-        end = op.args.get("end", 0)
+        start = _validate_int(op.args.get("start", 0), "start")
+        end = _validate_int(op.args.get("end", 0), "end")
         length = end - start if end > start else 0
         return SLICE_TEMPLATE.format(
             hash=op_hash[:12],
@@ -66,7 +66,9 @@ def compile_operation(op: Operation, store_paths: dict[str, str]) -> str:
 
     elif op.op == OpType.CHUNK:
         input_path = store_paths[op.args["input"]]
-        n = op.args["n"]
+        n = _validate_int(op.args["n"], "n")
+        if n <= 0:
+            raise NixCompileError("Parameter 'n' must be a positive integer")
         return CHUNK_TEMPLATE.format(
             hash=op_hash[:12],
             input_path=input_path,
@@ -112,5 +114,20 @@ def _op_hash(op: Operation) -> str:
 
 
 def _escape_nix_string(s: str) -> str:
-    """Escape a string for safe inclusion in a Nix expression."""
-    return s.replace("\\", "\\\\").replace("'", "'\\''").replace("$", "\\$")
+    """Escape a string for safe inclusion in a Nix double-quoted string.
+
+    Handles the three special sequences in Nix "..." strings:
+    - backslash (escape character)
+    - double quote (string delimiter)
+    - dollar sign (prevents ${...} interpolation)
+    """
+    return s.replace("\\", "\\\\").replace('"', '\\"').replace("$", "\\$")
+
+
+def _validate_int(value: object, name: str) -> int:
+    """Validate and convert a value to int for safe template interpolation."""
+    if not isinstance(value, int):
+        raise NixCompileError(
+            f"Parameter '{name}' must be an integer, got {type(value).__name__}"
+        )
+    return value

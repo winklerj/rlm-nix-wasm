@@ -6,8 +6,9 @@ GREP_TEMPLATE = '''{{ pkgs ? import <nixpkgs> {{}} }}:
 
 pkgs.runCommand "rlm-grep-{hash}" {{
   input = {input_path};
+  pattern = "{pattern}";
 }} ''
-  grep -E '{pattern}' "$input" > $out || true
+  grep -E "$pattern" "$input" > $out || true
 ''
 '''
 
@@ -45,9 +46,10 @@ SPLIT_TEMPLATE = '''{{ pkgs ? import <nixpkgs> {{}} }}:
 
 pkgs.runCommand "rlm-split-{hash}" {{
   input = {input_path};
+  delimiter = "{delimiter}";
 }} ''
   mkdir -p $out
-  csplit -f "$out/part_" -z "$input" '/{delimiter}/' '{{*}}' 2>/dev/null || cp "$input" "$out/part_00"
+  csplit -f "$out/part_" -z "$input" "/$delimiter/" '{{*}}' 2>/dev/null || cp "$input" "$out/part_00"
 ''
 '''
 
