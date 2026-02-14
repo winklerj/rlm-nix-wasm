@@ -6,7 +6,7 @@ from rlm.config import load_config
 class TestLoadConfig:
     def test_default_model(self):
         config = load_config()
-        assert config.model == "claude-opus-4-6"
+        assert config.model == "claude-opus-4-5"
         assert config.child_model is None
 
     def test_model_override(self):

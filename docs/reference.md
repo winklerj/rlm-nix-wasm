@@ -16,7 +16,7 @@ rlm run [OPTIONS]
 |--------|-------|------|---------|-------------|
 | `--query` | `-q` | string | required | The question to answer |
 | `--context` | `-c` | path | stdin | Path to the context file. If omitted, reads from stdin |
-| `--model` | `-m` | string | `claude-opus-4-6` | LLM model for the orchestrator (any litellm-supported model) |
+| `--model` | `-m` | string | `claude-opus-4-5` | LLM model for the orchestrator (any litellm-supported model) |
 | `--child-model` | | string | same as `--model` | LLM model for recursive sub-calls |
 | `--max-explore` | | int | `20` | Maximum explore steps before forcing a commit |
 | `--max-depth` | | int | `1` | Maximum recursion depth |
@@ -53,7 +53,7 @@ All settings can be configured via environment variables. CLI flags take precede
 
 | Setting | Environment Variable | CLI Flag | Default |
 |---------|---------------------|----------|---------|
-| LLM model | `RLM_MODEL` | `--model` | `claude-opus-4-6` |
+| LLM model | `RLM_MODEL` | `--model` | `claude-opus-4-5` |
 | Child LLM model | `RLM_CHILD_MODEL` | `--child-model` | same as `--model` |
 | Max explore steps | `RLM_MAX_EXPLORE_STEPS` | `--max-explore` | `20` |
 | Max commit cycles | `RLM_MAX_COMMIT_CYCLES` | -- | `5` |

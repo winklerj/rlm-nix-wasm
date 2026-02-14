@@ -57,6 +57,7 @@ The orchestrator (`orchestrator.py`) manages this loop: prompt LLM → parse res
 
 Defined in `types.py` as `OpType` enum, implemented in `ops/`:
 - **Text ops** (`ops/text.py`): `slice`, `grep`, `count`, `chunk`, `split`
+- **Eval op** (`ops/eval_op.py`, `evaluator/wasm_sandbox.py`): `eval` — runs Python code in a Wasm (WASI) sandbox. Requires `--wasm-python`. Dispatched directly by `LightweightEvaluator._execute_eval()`, not through `EXPLORE_OPS`.
 - **Recursive ops** (`ops/recursive.py`): `combine` (and `rlm_call`, `map` handled by orchestrator)
 
 The orchestrator handles `rlm_call` and `map` specially — `rlm_call` creates a child `RLMOrchestrator`, and `map` uses `ThreadPoolExecutor` for parallel recursive calls.

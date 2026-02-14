@@ -27,10 +27,10 @@ Use a powerful reasoning model for the orchestrator while keeping sub-calls chea
 
 ```bash
 # Opus for orchestration, nano for recursive sub-calls
-rlm run -q "Analyze this" -c data.txt -m claude-opus-4-6 --child-model gpt-5-nano
+rlm run -q "Analyze this" -c data.txt -m claude-opus-4-5 --child-model gpt-5-nano
 
 # Set defaults via environment variables
-export RLM_MODEL=claude-opus-4-6
+export RLM_MODEL=claude-opus-4-5
 export RLM_CHILD_MODEL=gpt-5-nano
 rlm run -q "Analyze this" -c data.txt
 ```
