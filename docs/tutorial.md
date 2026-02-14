@@ -1,13 +1,13 @@
-# Tutorial: Getting Started with rlm-secure
+# Tutorial: Getting Started with rlm-nix-wasm
 
-This tutorial walks you through installing rlm-secure, running your first query, and understanding what happens under the hood. By the end, you'll be able to use rlm-secure to answer questions about large text files.
+This tutorial walks you through installing rlm-nix-wasm, running your first query, and understanding what happens under the hood. By the end, you'll be able to use rlm-nix-wasm to answer questions about large text files.
 
 ## Prerequisites
 
 - Python 3.11 or later
 - An API key for an LLM provider (this tutorial uses OpenAI, but any [litellm-supported provider](https://docs.litellm.ai/docs/providers) works)
 
-## Install rlm-secure
+## Install rlm-nix-wasm
 
 ```bash
 pip install -e .
@@ -25,7 +25,7 @@ uv sync
 export OPENAI_API_KEY=sk-...
 ```
 
-For Anthropic, use `ANTHROPIC_API_KEY` instead. rlm-secure uses litellm, so any supported provider works.
+For Anthropic, use `ANTHROPIC_API_KEY` instead. rlm-nix-wasm uses litellm, so any supported provider works.
 
 ## Create a sample data file
 
@@ -58,11 +58,11 @@ You should see a short answer like:
 There are 3 ERROR lines in the log.
 ```
 
-Behind the scenes, rlm-secure didn't just pass the whole file to the LLM. It used the explore/commit protocol: the LLM first peeked at the data to understand its structure, then emitted a plan of operations (like `grep` and `count`) to answer the question.
+Behind the scenes, rlm-nix-wasm didn't just pass the whole file to the LLM. It used the explore/commit protocol: the LLM first peeked at the data to understand its structure, then emitted a plan of operations (like `grep` and `count`) to answer the question.
 
 ## Turn on verbose mode
 
-Run the same query with `-v` to see what rlm-secure is doing:
+Run the same query with `-v` to see what rlm-nix-wasm is doing:
 
 ```bash
 rlm run -q "How many ERROR lines are in this log?" -c sample.log -v
@@ -114,7 +114,7 @@ You'll see something like:
 ```
 Entries: 4
 Size: 1.2 KB
-Location: /home/you/.cache/rlm-secure
+Location: /home/you/.cache/rlm-nix-wasm
 ```
 
 ## Clear the cache
@@ -127,4 +127,4 @@ rlm cache clear
 
 - Read the [How-to Guides](how-to-guides.md) for specific tasks like changing models, enabling Nix sandboxing, and processing large files
 - Read the [Reference](reference.md) for a complete specification of all operations and configuration options
-- Read the [Explanation](explanation.md) to understand the design decisions behind rlm-secure
+- Read the [Explanation](explanation.md) to understand the design decisions behind rlm-nix-wasm

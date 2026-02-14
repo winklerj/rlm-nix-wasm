@@ -3,7 +3,7 @@ date: 2026-02-09T00:00:00-05:00
 researcher: claude
 git_commit: a9d5b348b577b986bf31415e2e958a67e2a33e1c
 branch: main
-repository: rlm-secure
+repository: rlm-nix-wasm
 topic: "Dual-model support: reasoning model for orchestrator, smaller model for child calls"
 tags: [research, codebase, model-configuration, orchestrator, llm-client, cli]
 status: complete
@@ -17,7 +17,7 @@ last_updated_by: claude
 **Researcher**: claude
 **Git Commit**: a9d5b348b577b986bf31415e2e958a67e2a33e1c
 **Branch**: main
-**Repository**: rlm-secure
+**Repository**: rlm-nix-wasm
 
 ## Research Question
 

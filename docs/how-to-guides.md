@@ -1,6 +1,6 @@
 # How-to Guides
 
-Practical directions for accomplishing specific tasks with rlm-secure.
+Practical directions for accomplishing specific tasks with rlm-nix-wasm.
 
 ## How to use a different LLM model
 
@@ -121,7 +121,7 @@ When `--wasm-python` is not set, the eval operation is not mentioned in the syst
 
 ## How to increase recursion depth
 
-By default, rlm-secure allows 1 level of recursion (the root call can spawn sub-calls, but sub-calls cannot spawn further sub-calls). For deeply nested problems, increase the limit:
+By default, rlm-nix-wasm allows 1 level of recursion (the root call can spawn sub-calls, but sub-calls cannot spawn further sub-calls). For deeply nested problems, increase the limit:
 
 ```bash
 rlm run -q "Analyze this large dataset" -c data.csv --max-depth 3
@@ -137,7 +137,7 @@ At maximum depth, sub-calls fall back to a direct LLM call with a truncated cont
 
 ## How to process very large files
 
-rlm-secure is designed for large files. The LLM never sees the full context -- it explores the data incrementally and emits a computation plan. For best results with very large files:
+rlm-nix-wasm is designed for large files. The LLM never sees the full context -- it explores the data incrementally and emits a computation plan. For best results with very large files:
 
 1. **Increase explore steps** so the LLM has more room to understand the data structure:
 
@@ -211,7 +211,7 @@ export RLM_CACHE_DIR=/tmp/rlm-cache
 
 ## How to see model pricing
 
-You can see the prices that `rlm-secure` uses to estimate cost.
+You can see the prices that `rlm-nix-wasm` uses to estimate cost.
 
 ```bash
 rlm list-model-pricing

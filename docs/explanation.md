@@ -1,6 +1,6 @@
 # Explanation
 
-Background, context, and design rationale for rlm-secure.
+Background, context, and design rationale for rlm-nix-wasm.
 
 For the full design document, see [RESEARCH.md](../RESEARCH.md).
 
@@ -18,7 +18,7 @@ The original RLM approach (from the [alexzhang13/rlm](https://github.com/alexzha
 2. **Caching**: There's no way to tell if two code snippets produce the same result without running both. Identical sub-questions are recomputed every time.
 3. **Parallelism**: Recursive calls execute sequentially because arbitrary code can have side effects, making it unsafe to run calls in parallel.
 
-rlm-secure replaces arbitrary code with a structured DSL -- a fixed set of pure operations like `slice`, `grep`, `count`, `chunk`, and `combine`. Because these operations are pure functions (output depends only on input, with no side effects), they can be safely cached and parallelized.
+rlm-nix-wasm replaces arbitrary code with a structured DSL -- a fixed set of pure operations like `slice`, `grep`, `count`, `chunk`, and `combine`. Because these operations are pure functions (output depends only on input, with no side effects), they can be safely cached and parallelized.
 
 ### The eval escape hatch
 
@@ -56,19 +56,19 @@ The cache layout (`{hash[:2]}/{hash[2:4]}/{hash}`) mirrors Nix store conventions
 
 ## Why Nix?
 
-Nix's build system provides three properties that align with rlm-secure's needs:
+Nix's build system provides three properties that align with rlm-nix-wasm's needs:
 
 1. **Sandboxing**: Nix builds run in isolated environments with no network access and no filesystem access outside the build directory. This is the same isolation mechanism that protects NixOS package builds from interfering with each other.
 
-2. **Content-addressed storage**: Nix already names build outputs by the hash of their inputs. This matches rlm-secure's caching model exactly -- when Nix sees the same derivation twice, it skips the build and returns the cached result.
+2. **Content-addressed storage**: Nix already names build outputs by the hash of their inputs. This matches rlm-nix-wasm's caching model exactly -- when Nix sees the same derivation twice, it skips the build and returns the cached result.
 
-3. **Automatic parallelism**: `nix-build` automatically schedules independent derivations in parallel, up to a configurable number of jobs. rlm-secure gets parallelism for free by compiling its operations into a dependency graph of Nix derivations.
+3. **Automatic parallelism**: `nix-build` automatically schedules independent derivations in parallel, up to a configurable number of jobs. rlm-nix-wasm gets parallelism for free by compiling its operations into a dependency graph of Nix derivations.
 
-Nix integration is optional. Without it, rlm-secure still provides caching and parallelism (via Python's `ThreadPoolExecutor`), but without process-level isolation.
+Nix integration is optional. Without it, rlm-nix-wasm still provides caching and parallelism (via Python's `ThreadPoolExecutor`), but without process-level isolation.
 
 ## Defense in depth
 
-rlm-secure uses multiple layers of protection:
+rlm-nix-wasm uses multiple layers of protection:
 
 | Layer | Always active | Description |
 |-------|:---:|-------------|

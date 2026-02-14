@@ -3,7 +3,7 @@ date: "2026-02-10T00:00:00+00:00"
 researcher: claude
 git_commit: 9b7e5b179169cf9c31c83e3c70bef1e5ac319cdf
 branch: main
-repository: rlm-secure
+repository: rlm-nix-wasm
 topic: "Trace flag and file storage"
 tags: [research, codebase, trace, cache, file-storage, cli]
 status: complete
@@ -17,14 +17,14 @@ last_updated_by: claude
 **Researcher**: claude
 **Git Commit**: 9b7e5b179169cf9c31c83e3c70bef1e5ac319cdf
 **Branch**: main
-**Repository**: rlm-secure
+**Repository**: rlm-nix-wasm
 
 ## Research Question
 How does the `--trace` flag work and how are trace files and cached operation results stored on disk?
 
 ## Summary
 
-The `--trace` CLI flag enables comprehensive execution recording. When provided a file path, a `TraceCollector` captures every LLM call, explore step, commit cycle, and final answer as chronological events in a tree of `OrchestratorTrace` nodes. At completion, the tree is serialized to JSON via Pydantic and written to the specified path. Separately, a content-addressed filesystem cache stores operation results keyed by SHA256 of (op_type + args + input_hashes), using a Nix-like `{hash[:2]}/{hash[2:4]}/{hash}` directory structure under `~/.cache/rlm-secure/`.
+The `--trace` CLI flag enables comprehensive execution recording. When provided a file path, a `TraceCollector` captures every LLM call, explore step, commit cycle, and final answer as chronological events in a tree of `OrchestratorTrace` nodes. At completion, the tree is serialized to JSON via Pydantic and written to the specified path. Separately, a content-addressed filesystem cache stores operation results keyed by SHA256 of (op_type + args + input_hashes), using a Nix-like `{hash[:2]}/{hash[2:4]}/{hash}` directory structure under `~/.cache/rlm-nix-wasm/`.
 
 ## Detailed Findings
 
@@ -125,7 +125,7 @@ Uses Pydantic's `model_dump_json()` for type-safe serialization with 2-space ind
 ```
 {cache_dir}/{key[:2]}/{key[2:4]}/{key}
 ```
-Default cache directory: `~/.cache/rlm-secure/` (configurable via `RLM_CACHE_DIR` env var or config).
+Default cache directory: `~/.cache/rlm-nix-wasm/` (configurable via `RLM_CACHE_DIR` env var or config).
 
 **Operations**:
 - `get(key)` - Returns `path.read_text()` if exists, else `None` (`store.py:28-33`)
@@ -157,7 +157,7 @@ This ensures identical operations with identical inputs always produce the same 
 ### 10. Cache Configuration
 
 Three-layer precedence:
-- Default: `Path.home() / ".cache" / "rlm-secure"` (`types.py:100`)
+- Default: `Path.home() / ".cache" / "rlm-nix-wasm"` (`types.py:100`)
 - Environment: `RLM_CACHE_DIR` (`config.py:21`)
 - CLI: `--cache-dir` flag
 
@@ -170,7 +170,7 @@ CLI cache management commands at `cli.py:173-201`:
 | Mechanism | Location | Lifecycle |
 |-----------|----------|-----------|
 | Trace output | User-specified `--trace PATH` | Written once at end of run |
-| Cache entries | `~/.cache/rlm-secure/` | Persistent until `rlm cache clear` |
+| Cache entries | `~/.cache/rlm-nix-wasm/` | Persistent until `rlm cache clear` |
 | Nix store ops | System temp dir then `/nix/store/` | Temp files auto-cleaned |
 | Wasm sandbox | `tempfile.TemporaryDirectory()` | Auto-cleaned via context manager |
 | Nix builder | `tempfile.NamedTemporaryFile()` | Cleaned in finally blocks |

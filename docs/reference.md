@@ -1,6 +1,6 @@
 # Reference
 
-Complete specification of the rlm-secure CLI, operations, configuration, and architecture.
+Complete specification of the rlm-nix-wasm CLI, operations, configuration, and architecture.
 
 ## CLI Commands
 
@@ -35,7 +35,7 @@ Delete all cached operation results.
 
 ### `rlm list-model-pricing`
 
-Show the known model prices that `rlm-secure` uses to estimate cost.
+Show the known model prices that `rlm-nix-wasm` uses to estimate cost.
 
 ```bash
 rlm list-model-pricing
@@ -59,7 +59,7 @@ All settings can be configured via environment variables. CLI flags take precede
 | Max commit cycles | `RLM_MAX_COMMIT_CYCLES` | -- | `5` |
 | Max recursion depth | `RLM_MAX_RECURSION_DEPTH` | `--max-depth` | `1` |
 | Max parallel jobs | `RLM_MAX_PARALLEL_JOBS` | -- | `4` |
-| Cache directory | `RLM_CACHE_DIR` | -- | `~/.cache/rlm-secure` |
+| Cache directory | `RLM_CACHE_DIR` | -- | `~/.cache/rlm-nix-wasm` |
 | Enable Nix | `RLM_USE_NIX` | `--use-nix` | `false` |
 | Verbose output | `RLM_VERBOSE` | `--verbose` | `false` |
 | Wasm python.wasm path | `RLM_WASM_PYTHON_PATH` | `--wasm-python` | none |
@@ -217,7 +217,7 @@ Example commit plan:
 The cache stores operation results in a content-addressed filesystem layout:
 
 ```
-~/.cache/rlm-secure/
+~/.cache/rlm-nix-wasm/
   ab/
     cd/
       abcd1234...   # full SHA-256 hash as filename

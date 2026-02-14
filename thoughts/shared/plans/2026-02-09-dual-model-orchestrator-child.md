@@ -67,7 +67,7 @@ class RLMConfig(BaseModel):
     max_recursion_depth: int = 1
     max_parallel_jobs: int = 4
     temperature: float = 1.0
-    cache_dir: Path = Path.home() / ".cache" / "rlm-secure"
+    cache_dir: Path = Path.home() / ".cache" / "rlm-nix-wasm"
     use_nix: bool = False
     verbose: bool = False
 ```
@@ -520,7 +520,7 @@ Add `RLM_CHILD_MODEL` row and fix model default:
 | Max commit cycles | `RLM_MAX_COMMIT_CYCLES` | -- | `5` |
 | Max recursion depth | `RLM_MAX_RECURSION_DEPTH` | `--max-depth` | `1` |
 | Max parallel jobs | `RLM_MAX_PARALLEL_JOBS` | -- | `4` |
-| Cache directory | `RLM_CACHE_DIR` | -- | `~/.cache/rlm-secure` |
+| Cache directory | `RLM_CACHE_DIR` | -- | `~/.cache/rlm-nix-wasm` |
 | Enable Nix | `RLM_USE_NIX` | `--use-nix` | `false` |
 | Verbose output | `RLM_VERBOSE` | `--verbose` | `false` |
 ```

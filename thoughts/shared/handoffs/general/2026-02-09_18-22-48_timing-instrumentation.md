@@ -3,7 +3,7 @@ date: 2026-02-09T18:22:48+00:00
 researcher: claude
 git_commit: 09cedb3967b35693b69e5ed39cd1a4a6c3555f17
 branch: main
-repository: rlm-secure
+repository: rlm-nix-wasm
 topic: "Timing Instrumentation + Verbose Output Improvements"
 tags: [implementation, timing, verbose, instrumentation, testing]
 status: complete

@@ -124,7 +124,7 @@ class RLMConfig(BaseModel):
     max_recursion_depth: int = 1
     max_parallel_jobs: int = 4
     temperature: float = 1.0
-    cache_dir: Path = Path.home() / ".cache" / "rlm-secure"
+    cache_dir: Path = Path.home() / ".cache" / "rlm-nix-wasm"
     use_nix: bool = False
     verbose: bool = False
     # Wasm sandbox settings for sandboxed code operations

@@ -1,8 +1,8 @@
-# rlm-secure
+# rlm-nix-wasm
 
 Sandboxed Recursive Language Models with Nix.
 
-rlm-secure lets LLMs break down large-context problems into smaller recursive sub-calls. Each call operates through a structured DSL instead of arbitrary code execution, with content-addressed caching and optional Nix sandboxing.
+rlm-nix-wasm lets LLMs break down large-context problems into smaller recursive sub-calls. Each call operates through a structured DSL instead of arbitrary code execution, with content-addressed caching and optional Nix sandboxing.
 
 ## Quick Start
 
@@ -16,7 +16,7 @@ rlm list-model-pricing
 
 ## Wasm Code Execution
 
-rlm-secure can optionally run LLM-generated Python code inside a WebAssembly (WASI) sandbox. This bridges the structured DSL with arbitrary logic when needed (regex, math, custom filtering), while maintaining security through hardware-level memory isolation, no filesystem or network access.
+rlm-nix-wasm can optionally run LLM-generated Python code inside a WebAssembly (WASI) sandbox. This bridges the structured DSL with arbitrary logic when needed (regex, math, custom filtering), while maintaining security through hardware-level memory isolation, no filesystem or network access.
 
 ```bash
 # 1. Install wasmtime
@@ -36,7 +36,7 @@ See [How-to Guides](docs/how-to-guides.md) for setup details and [Explanation](d
 
 | | |
 |---|---|
-| [Tutorial](docs/tutorial.md) | Learn rlm-secure step by step with a hands-on walkthrough |
+| [Tutorial](docs/tutorial.md) | Learn rlm-nix-wasm step by step with a hands-on walkthrough |
 | [How-to Guides](docs/how-to-guides.md) | Solve specific problems: change models, enable sandboxing, tune performance |
 | [Reference](docs/reference.md) | Complete specification of the CLI, operations, configuration, and architecture |
 | [Explanation](docs/explanation.md) | Understand the design: why recursive models, why the explore/commit protocol, why Nix |

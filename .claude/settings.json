@@ -10,7 +10,7 @@
   "env": {
     "MAX_THINKING_TOKENS": "32000",
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
-    "CLAUDE_CODE_TASK_LIST_ID": "rlm-secure",
+    "CLAUDE_CODE_TASK_LIST_ID": "rlm-nix-wasm",
     "CLAUDE_CODE_ENABLE_TASKS": "1"
   }
 }

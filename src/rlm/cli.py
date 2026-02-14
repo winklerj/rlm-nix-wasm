@@ -1,4 +1,4 @@
-"""CLI entry point for rlm-secure."""
+"""CLI entry point for rlm-nix-wasm."""
 
 from __future__ import annotations
 

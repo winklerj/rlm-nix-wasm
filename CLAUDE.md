@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-rlm-secure is a recursive language model system that lets LLMs break down large-context problems into smaller recursive sub-calls. Each call operates through a structured DSL (not arbitrary code execution), with content-addressed caching and optional Nix sandboxing.
+rlm-nix-wasm is a recursive language model system that lets LLMs break down large-context problems into smaller recursive sub-calls. Each call operates through a structured DSL (not arbitrary code execution), with content-addressed caching and optional Nix sandboxing.
 
 ## Development Commands
 

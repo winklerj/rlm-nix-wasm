@@ -3,7 +3,7 @@ date: "2026-02-09T20:15:00+00:00"
 researcher: claude
 git_commit: 48581e6edf9ebc27c7646e4bafdd7b355d7f6403
 branch: main
-repository: rlm-secure
+repository: rlm-nix-wasm
 topic: "Trace event ordering: unified event list vs separate typed lists"
 tags: [research, codebase, trace, execution-trace, data-model]
 status: complete
@@ -17,7 +17,7 @@ last_updated_by: claude
 **Researcher**: claude
 **Git Commit**: 48581e6
 **Branch**: main
-**Repository**: rlm-secure
+**Repository**: rlm-nix-wasm
 
 ## Research Question
 

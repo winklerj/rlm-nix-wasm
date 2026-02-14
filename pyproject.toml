@@ -1,5 +1,5 @@
 [project]
-name = "rlm-secure"
+name = "rlm-nix-wasm"
 version = "0.1.0"
 description = "Sandboxed Recursive Language Models with Nix"
 requires-python = ">=3.11"

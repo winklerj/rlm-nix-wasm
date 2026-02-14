@@ -2,7 +2,7 @@
 
 ## Context
 
-The rlm-secure CLI's `--verbose` mode currently has two problems:
+The rlm-nix-wasm CLI's `--verbose` mode currently has two problems:
 1. **No per-step timing** — only total wall-clock time is shown at the end. There's no visibility into how long each LLM call, operation, or cache lookup takes.
 2. **Unclear verbose output** — Explore steps show `EXPLORE [3]: grep(...)` where `[3]` is an unlabeled step counter. Commit output shows `COMMIT [1]: 3 operations` with no detail about what those operations are.
 

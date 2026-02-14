@@ -1,4 +1,4 @@
-# RLM-Secure Implementation Plan
+# RLM-Nix-Wasm Implementation Plan
 
 ## Overview
 
@@ -81,7 +81,7 @@ Set up the Python project structure, dependencies, and core data types that ever
 
 ```toml
 [project]
-name = "rlm-secure"
+name = "rlm-nix-wasm"
 version = "0.1.0"
 description = "Sandboxed Recursive Language Models with Nix"
 requires-python = ">=3.11"
@@ -268,7 +268,7 @@ class RLMConfig(BaseModel):
     max_recursion_depth: int = 1
     max_parallel_jobs: int = 4
     temperature: float = 0.0
-    cache_dir: Path = Path.home() / ".cache" / "rlm-secure"
+    cache_dir: Path = Path.home() / ".cache" / "rlm-nix-wasm"
     use_nix: bool = False
     verbose: bool = False
 ```
@@ -318,7 +318,7 @@ def load_config(**overrides) -> RLMConfig:
 **File**: `src/rlm/cli.py`
 
 ```python
-"""CLI entry point for rlm-secure."""
+"""CLI entry point for rlm-nix-wasm."""
 
 from __future__ import annotations
 
@@ -1409,13 +1409,13 @@ class BwrapSandbox:
 Write comprehensive documentation covering:
 
 ```markdown
-# rlm-secure
+# rlm-nix-wasm
 
 Sandboxed Recursive Language Models with Nix.
 
 ## What is this?
 
-rlm-secure lets LLMs process contexts far larger than their context window by
+rlm-nix-wasm lets LLMs process contexts far larger than their context window by
 recursively breaking problems into smaller pieces. Each piece runs in an
 isolated sandbox with content-addressed caching and parallel execution.
 
@@ -1435,7 +1435,7 @@ Based on the Recursive Language Models paper (Zhang & Khattab, 2025).
 ### From source
 
     git clone <repo-url>
-    cd rlm-secure
+    cd rlm-nix-wasm
     pip install -e .
 
 ### With development dependencies
