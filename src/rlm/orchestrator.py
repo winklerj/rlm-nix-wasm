@@ -14,7 +14,12 @@ from rlm.cache.store import CacheStore
 from rlm.evaluator.lightweight import LightweightEvaluator
 from rlm.llm.client import LLMClient
 from rlm.llm.parser import ParseError, parse_llm_output
-from rlm.llm.prompts import EVAL_APPROACH_ADDENDUM, EVAL_OPS_ADDENDUM, SYSTEM_PROMPT
+from rlm.llm.prompts import (
+    EVAL_APPROACH_ADDENDUM,
+    EVAL_APPROACH_BENCHMARK,
+    EVAL_OPS_ADDENDUM,
+    SYSTEM_PROMPT,
+)
 from rlm.timing import TimingProfile
 from rlm.trace import CommitOperationTrace, ExecutionTrace, OrchestratorTrace, TraceCollector
 from rlm.types import (
@@ -100,7 +105,13 @@ class RLMOrchestrator:
 
         # Conditionally include eval docs when Wasm sandbox is available
         eval_ops = EVAL_OPS_ADDENDUM if self.config.wasm_python_path else ""
-        eval_approach = EVAL_APPROACH_ADDENDUM if self.config.wasm_python_path else ""
+        if self.config.wasm_python_path:
+            eval_approach = (
+                EVAL_APPROACH_BENCHMARK if self.config.benchmark_eval_prompt
+                else EVAL_APPROACH_ADDENDUM
+            )
+        else:
+            eval_approach = ""
 
         system = SYSTEM_PROMPT.format(
             context_chars=f"{len(ctx.content):,}",
@@ -174,9 +185,9 @@ class RLMOrchestrator:
                     )
 
                     display_value = result.value
-                    if len(display_value) > 4000:
+                    if len(display_value) > self.config.max_result_chars:
                         display_value = (
-                            display_value[:4000]
+                            display_value[:self.config.max_result_chars]
                             + f"\n... ({len(result.value)} chars total)"
                         )
 
@@ -224,9 +235,9 @@ class RLMOrchestrator:
                     )
 
                     display_result = commit_result
-                    if len(display_result) > 4000:
+                    if len(display_result) > self.config.max_result_chars:
                         display_result = (
-                            display_result[:4000]
+                            display_result[:self.config.max_result_chars]
                             + f"\n... ({len(commit_result)} chars total)"
                         )
 

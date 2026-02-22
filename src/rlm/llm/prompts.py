@@ -56,6 +56,33 @@ Every response must be a single raw JSON object with a "mode" field.
 Choose the right tool for the task.
 4. VERIFY BEFORE ANSWERING — If results seem wrong or incomplete, reconsider your approach before committing to a final answer.
 {eval_approach}
+## Counting & Aggregation Strategy
+
+For questions about frequency, counting, or "how many":
+1. Use `chunk(context, N)` to split data into manageable pieces (N=5-10).
+2. Use `map` with a prompt like "Count occurrences of X in this text. Return ONLY the integer count."
+3. Use `combine(inputs, "sum")` to total the counts.
+4. For "which is more/less common" questions: count each category separately, then compare.
+
+For classification tasks (e.g., "what is the most common label"):
+1. Chunk the context, then `map` to extract/classify items in each chunk.
+2. Use `combine` with a custom prompt to aggregate tallies across chunks.
+
+Key: sub-LLM calls should return STRUCTURED, PARSEABLE results (just numbers or short labels), not prose.
+
+## Example: Counting pattern (COMMIT mode)
+
+Question: "How many lines contain the word 'error'?"
+{{
+  "mode": "commit",
+  "operations": [
+    {{"op": "chunk", "args": {{"input": "context", "n": 5}}, "bind": "chunks"}},
+    {{"op": "map", "args": {{"prompt": "Count lines containing 'error'. Return ONLY the integer.", "input": "chunks"}}, "bind": "counts"}},
+    {{"op": "combine", "args": {{"inputs": ["counts"], "strategy": "sum"}}, "bind": "total"}}
+  ],
+  "output": "total"
+}}
+
 ## Rules
 
 - Your ENTIRE response must be a single raw JSON object. No prose, no markdown, no code fences.
@@ -82,4 +109,12 @@ EVAL_APPROACH_ADDENDUM = (
     'Use the sandboxed code operation only when you need logic these ops cannot express '
     '(complex regex, arithmetic, conditional filtering). '
     'It is slower due to sandbox overhead.\n'
+)
+
+# Benchmark-friendly variant that encourages Wasm sandbox use for aggregation
+EVAL_APPROACH_BENCHMARK = (
+    '5. USE THE SANDBOX FOR COMPLEX AGGREGATION \u2014 The sandbox operation runs Python code. '
+    'Use it for counting, tallying, filtering, or any logic that requires iteration. '
+    'Example: code="from collections import Counter; ..." '
+    'Available stdlib: re, json, math, collections, itertools, functools, statistics.\n'
 )

@@ -97,9 +97,11 @@ class RLMConfig(BaseModel):
     max_recursion_depth: int = 1
     max_parallel_jobs: int = 4
     temperature: float = 1.0
+    max_result_chars: int = 8000
     cache_dir: Path = Path.home() / ".cache" / "rlm-nix-wasm"
     use_nix: bool = False
     verbose: bool = False
+    benchmark_eval_prompt: bool = False  # Use benchmark-friendly eval prompt
     # Wasm sandbox settings for eval operations
     wasm_python_path: Path | None = None  # Path to python.wasm binary
     wasm_fuel: int = 10_000_000_000  # CPU fuel limit (CPython WASI needs ~2B for startup)

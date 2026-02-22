@@ -11,45 +11,9 @@ import click
 from rich.console import Console
 
 from rlm.config import load_config
+from rlm.pricing import MODEL_PRICING, estimate_cost
 
 console = Console(stderr=True)
-
-
-# Pricing per million tokens (as of Feb 2026)
-MODEL_PRICING = {
-    # Anthropic Claude models (https://platform.claude.com/docs/en/about-claude/pricing)
-    "claude-opus-4-6": {"input": 5.00, "output": 25.00},
-    "claude-opus-4.6": {"input": 5.00, "output": 25.00},
-    "claude-opus-4.5": {"input": 5.00, "output": 25.00},
-    "claude-opus-4.1": {"input": 15.00, "output": 75.00},
-    "claude-opus-4": {"input": 15.00, "output": 75.00},
-    "claude-sonnet-4.5": {"input": 3.00, "output": 15.00},
-    "claude-haiku-4.5": {"input": 1.00, "output": 5.00},
-    "claude-haiku-4-5-20251001": {"input": 1.00, "output": 5.00},   # API ID alias
-    "claude-sonnet-4-20250514": {"input": 3.00, "output": 15.00},   # API ID alias
-    "claude-3-5-haiku-20241022": {"input": 0.80, "output": 4.00},   # Claude Haiku 3.5
-    "claude-3-5-sonnet-20241022": {"input": 3.00, "output": 15.00}, # Claude Sonnet 3.5
-
-    # OpenAI GPT text models, Standard tier (https://platform.openai.com/docs/pricing)
-    "gpt-5.2": {"input": 1.75, "output": 14.00},
-    "gpt-5.1": {"input": 1.25, "output": 10.00},
-    "gpt-5": {"input": 1.25, "output": 10.00},
-    "gpt-5-mini": {"input": 0.25, "output": 2.00},
-    "gpt-5-nano": {"input": 0.05, "output": 0.40},
-    "gpt-4.1": {"input": 2.00, "output": 8.00},
-    "gpt-4.1-mini": {"input": 0.40, "output": 1.60},
-    "gpt-4.1-nano": {"input": 0.10, "output": 0.40},
-    "gpt-4o": {"input": 2.50, "output": 10.00},
-    "gpt-4o-mini": {"input": 0.15, "output": 0.60},
-}
-
-
-def estimate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
-    """Estimate cost in dollars based on model and token counts."""
-    pricing = MODEL_PRICING.get(model, {"input": 1.00, "output": 5.00})
-    input_cost = (input_tokens / 1_000_000) * pricing["input"]
-    output_cost = (output_tokens / 1_000_000) * pricing["output"]
-    return input_cost + output_cost
 
 
 @click.group()
@@ -202,3 +166,135 @@ def clear() -> None:
     store = CacheStore(config.cache_dir)
     removed = store.clear()
     click.echo(f"Cleared {removed} entries from {config.cache_dir}")
+
+
+# --- Eval subcommands ---
+
+
+@main.group("eval")
+def eval_group() -> None:
+    """Benchmark evaluation commands."""
+    pass
+
+
+@eval_group.command("download")
+@click.option("--benchmark", default="oolong-synth",
+              help="Benchmark to download (default: oolong-synth).")
+def eval_download(benchmark: str) -> None:
+    """Download benchmark dataset from HuggingFace."""
+    if benchmark != "oolong-synth":
+        console.print(f"[red]Unknown benchmark: {benchmark}. Only 'oolong-synth' is supported.[/red]")
+        raise SystemExit(1)
+
+    from rlm.eval.datasets import download_oolong_synth
+
+    console.print(f"Downloading {benchmark}...")
+    path = download_oolong_synth()
+    console.print(f"[green]Dataset cached at {path}[/green]")
+
+
+@eval_group.command("run")
+@click.option("--benchmark", default="oolong-synth", help="Benchmark name.")
+@click.option("--dataset", "dataset_name", default="trec_coarse",
+              help="Dataset within the benchmark (default: trec_coarse).")
+@click.option("--context-len", default=65536, type=int,
+              help="Context window length to evaluate (default: 65536).")
+@click.option("--model", "-m", default=None, help="LLM model for the orchestrator.")
+@click.option("--child-model", default=None,
+              help="LLM model for recursive sub-calls (defaults to --model).")
+@click.option("--max-explore", default=None, type=int, help="Max explore steps.")
+@click.option("--max-depth", default=None, type=int, help="Max recursion depth.")
+@click.option("--use-nix", is_flag=True, default=False, help="Use Nix for sandboxing.")
+@click.option("--wasm-python", type=click.Path(), default=None,
+              help="Path to python.wasm for sandboxed code execution.")
+@click.option("--temperature", default=0.3, type=float,
+              help="LLM temperature (default: 0.3 for eval).")
+@click.option("--output", "-o", default="results/oolong.jsonl", type=click.Path(),
+              help="Output JSONL path (default: results/oolong.jsonl).")
+@click.option("--resume/--no-resume", default=False,
+              help="Resume from existing results, skipping completed tasks.")
+@click.option("--limit", default=None, type=int,
+              help="Only run first N tasks (for testing).")
+@click.option("--verbose", "-v", is_flag=True, default=False, help="Verbose output.")
+@click.option("--trace", is_flag=True, default=False,
+              help="Enable execution tracing.")
+def eval_run(
+    benchmark: str,
+    dataset_name: str,
+    context_len: int,
+    model: str | None,
+    child_model: str | None,
+    max_explore: int | None,
+    max_depth: int | None,
+    use_nix: bool,
+    wasm_python: str | None,
+    temperature: float,
+    output: str,
+    resume: bool,
+    limit: int | None,
+    verbose: bool,
+    trace: bool,
+) -> None:
+    """Run benchmark evaluation."""
+    if benchmark != "oolong-synth":
+        console.print(f"[red]Unknown benchmark: {benchmark}[/red]")
+        raise SystemExit(1)
+
+    from rlm.eval.datasets import load_oolong_synth_tasks
+    from rlm.eval.report import print_report
+    from rlm.eval.runner import EvalRunner
+
+    config = load_config(
+        model=model,
+        child_model=child_model,
+        max_explore_steps=max_explore,
+        max_recursion_depth=max_depth,
+        use_nix=use_nix,
+        wasm_python_path=Path(wasm_python) if wasm_python else None,
+        temperature=temperature,
+        verbose=verbose,
+    )
+
+    console.print(f"[bold]OOLONG Evaluation: {dataset_name} @ {context_len:,} tokens[/bold]")
+    console.print(f"[dim]Model: {config.model}[/dim]")
+    if config.child_model:
+        console.print(f"[dim]Child model: {config.child_model}[/dim]")
+
+    # trec_coarse lives in the validation split
+    split = "validation" if dataset_name == "trec_coarse" else "test"
+    console.print(f"Loading tasks (split={split})...")
+    tasks = load_oolong_synth_tasks(
+        dataset_name=dataset_name,
+        context_len=context_len,
+        split=split,
+    )
+
+    if not tasks:
+        console.print(
+            f"[red]No tasks found for dataset={dataset_name}, "
+            f"context_len={context_len}, split={split}[/red]"
+        )
+        raise SystemExit(1)
+
+    console.print(f"Found {len(tasks)} tasks")
+
+    runner = EvalRunner(config, output_path=Path(output))
+    results = runner.run_all(tasks, resume=resume, limit=limit)
+
+    if results:
+        console.print()
+        print_report(results, console=console)
+
+
+@eval_group.command("report")
+@click.argument("results_path", type=click.Path(exists=True))
+def eval_report(results_path: str) -> None:
+    """Show summary report from a results JSONL file."""
+    from rlm.eval.report import load_results, print_report
+
+    results = load_results(Path(results_path))
+    if not results:
+        console.print("[yellow]No results found in file.[/yellow]")
+        raise SystemExit(1)
+
+    print_report(results, console=console)

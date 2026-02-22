@@ -18,6 +18,8 @@ def load_config(**overrides: Any) -> RLMConfig:
         "RLM_MAX_COMMIT_CYCLES": ("max_commit_cycles", int),
         "RLM_MAX_RECURSION_DEPTH": ("max_recursion_depth", int),
         "RLM_MAX_PARALLEL_JOBS": ("max_parallel_jobs", int),
+        "RLM_TEMPERATURE": ("temperature", float),
+        "RLM_MAX_RESULT_CHARS": ("max_result_chars", int),
         "RLM_CACHE_DIR": ("cache_dir", Path),
         "RLM_USE_NIX": ("use_nix", lambda x: x.lower() in ("1", "true", "yes")),
         "RLM_VERBOSE": ("verbose", lambda x: x.lower() in ("1", "true", "yes")),
