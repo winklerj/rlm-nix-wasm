@@ -1,0 +1,7 @@
+{
+  "question": "In the ContentAddressedCache class, what happens when you call `get()` for a key that exists on disk but not in memory?",
+  "choice_A": "It returns None and logs a cache miss",
+  "choice_B": "It reads from disk, stores in memory cache, and returns the result",
+  "choice_C": "It raises a KeyError exception",
+  "choice_D": "It reads from disk and returns the result without updating memory cache"
+}

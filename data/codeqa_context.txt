@@ -1,0 +1,135 @@
+import hashlib
+import json
+import os
+from pathlib import Path
+from typing import Any, Optional
+
+
+class ContentAddressedCache:
+    """A content-addressed cache that stores results keyed by SHA256 of inputs.
+
+    The cache persists to disk as individual JSON files, one per entry.
+    Keys are computed from the operation type, arguments, and input hashes.
+    """
+
+    def __init__(self, cache_dir: str = ".cache/rlm"):
+        self.cache_dir = Path(cache_dir)
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self._memory_cache: dict[str, Any] = {}
+
+    def _compute_key(
+        self, op_type: str, args: dict[str, Any], input_hashes: list[str]
+    ) -> str:
+        """Compute a deterministic cache key from operation parameters."""
+        key_material = json.dumps(
+            {"op": op_type, "args": args, "inputs": sorted(input_hashes)},
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        return hashlib.sha256(key_material.encode()).hexdigest()
+
+    def get(
+        self, op_type: str, args: dict[str, Any], input_hashes: list[str]
+    ) -> Optional[str]:
+        """Retrieve a cached result, or None if not found."""
+        key = self._compute_key(op_type, args, input_hashes)
+
+        # Check memory cache first
+        if key in self._memory_cache:
+            return self._memory_cache[key]
+
+        # Check disk cache
+        cache_file = self.cache_dir / f"{key}.json"
+        if cache_file.exists():
+            data = json.loads(cache_file.read_text())
+            self._memory_cache[key] = data["result"]
+            return data["result"]
+
+        return None
+
+    def put(
+        self,
+        op_type: str,
+        args: dict[str, Any],
+        input_hashes: list[str],
+        result: str,
+    ) -> str:
+        """Store a result in the cache. Returns the cache key."""
+        key = self._compute_key(op_type, args, input_hashes)
+
+        # Store in memory
+        self._memory_cache[key] = result
+
+        # Store on disk
+        cache_file = self.cache_dir / f"{key}.json"
+        cache_file.write_text(
+            json.dumps(
+                {
+                    "op": op_type,
+                    "args": args,
+                    "input_hashes": input_hashes,
+                    "result": result,
+                },
+                indent=2,
+            )
+        )
+
+        return key
+
+    def invalidate(self, key: str) -> bool:
+        """Remove a specific entry from the cache."""
+        self._memory_cache.pop(key, None)
+        cache_file = self.cache_dir / f"{key}.json"
+        if cache_file.exists():
+            cache_file.unlink()
+            return True
+        return False
+
+    def clear(self) -> int:
+        """Clear all cache entries. Returns the number of entries removed."""
+        count = 0
+        for f in self.cache_dir.glob("*.json"):
+            f.unlink()
+            count += 1
+        self._memory_cache.clear()
+        return count
+
+    def stats(self) -> dict[str, Any]:
+        """Return cache statistics."""
+        disk_files = list(self.cache_dir.glob("*.json"))
+        total_size = sum(f.stat().st_size for f in disk_files)
+        return {
+            "entries": len(disk_files),
+            "memory_entries": len(self._memory_cache),
+            "total_size_bytes": total_size,
+            "cache_dir": str(self.cache_dir),
+        }
+
+
+class CacheKeyBuilder:
+    """Helper for building cache keys from complex operation graphs."""
+
+    def __init__(self):
+        self._hashes: dict[str, str] = {}
+
+    def register_input(self, name: str, content: str) -> str:
+        """Register an input and return its content hash."""
+        h = hashlib.sha256(content.encode()).hexdigest()
+        self._hashes[name] = h
+        return h
+
+    def get_hash(self, name: str) -> str:
+        """Get the hash for a previously registered input."""
+        return self._hashes[name]
+
+    def build_key(
+        self, op_type: str, args: dict[str, Any], input_names: list[str]
+    ) -> str:
+        """Build a cache key from operation parameters and named inputs."""
+        input_hashes = [self._hashes[n] for n in sorted(input_names)]
+        key_material = json.dumps(
+            {"op": op_type, "args": args, "inputs": input_hashes},
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        return hashlib.sha256(key_material.encode()).hexdigest()
