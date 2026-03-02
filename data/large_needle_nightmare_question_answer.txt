@@ -1,0 +1,62 @@
+QUESTION:
+Based on the Consortium's current funding formula, what is the total annual Consortium-funded amount (in US dollars) for the East African cluster station whose primary cultivar achieved the highest pest resistance score — taking into account any cluster reclassifications, the most recent drought tolerance re-evaluation, the applicable funding tier, and the exclusion of partnership-exempt hectares?
+
+CORRECT ANSWER:
+$13,744,500
+
+
+REQUIRED REASONING CHAIN (8 hops):
+
+1. IDENTIFY: Which East African station has the highest pest resistance?
+   → EA-03 scored 8.9, EA-07 scored 8.4, EA-05 scored 8.1
+   → Naive answer: EA-03
+
+2. CHECK RECLASSIFICATION: Is EA-03 still in the East African cluster?
+   → NO. EA-03 was reclassified to Central African effective Jan 1, 2023.
+   → Current highest in East African: EA-07 (8.4)
+
+3. IDENTIFY CULTIVAR: What is EA-07's primary cultivar?
+   → MA-447
+
+4. FIND DROUGHT TOLERANCE: What is MA-447's drought tolerance?
+   → Original: 7.3 (from 2021 assessment)
+   → REVISED: 6.6 (from 2023 re-evaluation)
+   → Must use revised value per funding formula rules
+
+5. DETERMINE TIER: Which funding tier applies?
+   → 6.6 < 7.0 → Tier B ($38,500/hectare)
+   → NOT Tier A ($54,200/hectare) — a common trap using original 7.3 ≥ 7.0
+
+6. FIND TOTAL HECTARES: How many hectares does EA-07 have?
+   → 420 hectares total
+
+7. EXCLUDE PARTNERSHIP HECTARES: How many are exempt?
+   → 15% in JICA partnership trial = 63 hectares exempt
+   → Funded hectares: 420 - 63 = 357
+
+8. CALCULATE: 357 × $38,500 = $13,744,500
+
+
+
+DECOY ANSWERS (wrong paths that produce confident-sounding numbers):
+
+$19,349,400 — Used revised drought tolerance (correct 6.6) but forgot it's < 7.0,
+               or used ORIGINAL tolerance (7.3 ≥ 7.0 → Tier A). 357 × $54,200.
+
+$16,170,000 — Correct tier (B) but forgot to exclude partnership hectares.
+               420 × $38,500.
+
+$22,764,000 — Wrong tier (A) AND forgot partnership exclusion.
+               420 × $54,200.
+
+$12,574,400 — Used wrong station (EA-03 instead of EA-07 after reclassification).
+               EA-03: 290 hectares × 80% non-exempt × $54,200/ha (its cultivar CA-612
+               has drought tolerance 7.8 ≥ 7.0 → Tier A).
+
+$8,932,000  — Used EA-03's hectares (290) with Tier B rate. 232 × $38,500.
+               Multiple errors combined.
+
+"Cannot be determined" — Incorrect. All required information IS present in the
+                          document; it just requires 8 reasoning hops across
+                          7 widely separated paragraphs.
+
