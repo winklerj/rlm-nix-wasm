@@ -331,6 +331,12 @@
                         Load Needle (Nightmare)
                     </button>
                     <button
+                        onclick="loadSampleContext('needle_nightmare_large')"
+                        class="secondary"
+                    >
+                        Load Needle (Nightmare Large)
+                    </button>
+                    <button
                         onclick="loadSampleContext('codeqa')"
                         class="secondary"
                     >
@@ -510,6 +516,9 @@
                         document.getElementById("query").value = data.query;
                         document.getElementById("context").value = data.context;
                     } else if (type === "needle_nightmare") {
+                        document.getElementById("query").value = data.query;
+                        document.getElementById("context").value = data.context;
+                    } else if (type === "needle_nightmare_large") {
                         document.getElementById("query").value = data.query;
                         document.getElementById("context").value = data.context;
                     } else if (type === "codeqa") {

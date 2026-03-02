@@ -77,6 +77,13 @@ async def sample_handler(request):
                 "query": "Under the authority's revised emergency protocol, what manganese concentration must the facility that issued boil-water advisories in 2022 report in its engineering review?",
                 "context": context_file.read_text()
             })
+    elif sample_type == "needle_nightmare_large":
+        context_file = data_dir / "large_needle_nightmare_haystack.txt"
+        if context_file.exists():
+            return web.json_response({
+                "query": "Based on the Consortium's current funding formula, what is the total annual Consortium-funded amount (in US dollars) for the East African cluster station whose primary cultivar achieved the highest pest resistance score — taking into account any cluster reclassifications, the most recent drought tolerance re-evaluation, the applicable funding tier, and the exclusion of partnership-exempt hectares?",
+                "context": context_file.read_text()
+            })
     elif sample_type == "codeqa":
         context_file = data_dir / "codeqa_context.txt"
         question_file = data_dir / "codeqa_question.json"
