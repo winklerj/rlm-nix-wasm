@@ -977,6 +977,16 @@
                 p.className = "narrative-error";
                 p.textContent = "Failed to generate narrative: " + error;
                 el.appendChild(p);
+                const btn = document.createElement("button");
+                btn.className = "narrative-retry";
+                btn.textContent = "Retry narrative";
+                btn.onclick = () => {
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({ type: "retry_narrative" }));
+                        showNarrativePending();
+                    }
+                };
+                el.appendChild(btn);
             }
 
             function clearTrace() {
