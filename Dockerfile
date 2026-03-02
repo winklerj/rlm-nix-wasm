@@ -4,7 +4,7 @@ WORKDIR /app
 
 # System deps for native extensions (numpy, tokenizers, etc.)
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends gcc g++ && \
+    apt-get install -y --no-install-recommends gcc g++ curl && \
     rm -rf /var/lib/apt/lists/*
 
 # Install uv for fast dependency resolution
@@ -20,7 +20,10 @@ RUN uv pip install --system -e ".[wasm,eval]" aiohttp
 # Copy runtime assets
 COPY web/ web/
 COPY examples/ examples/
-COPY .wasm/ .wasm/
+# Download CPython WASI binary for the eval sandbox
+RUN mkdir -p .wasm && \
+    curl -fsSL -o .wasm/python-3.12.0.wasm \
+    "https://github.com/vmware-labs/webassembly-language-runtimes/releases/download/python/3.12.0%2B20231211-040d5a6/python-3.12.0.wasm"
 
 # Default: run the web demo on port 8765
 EXPOSE 8765
