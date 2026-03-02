@@ -211,9 +211,10 @@
             </div>
         </div>
         
-        <div style="margin-bottom: 20px;">
+        <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 15px;">
             <button onclick="startTrace()" id="startBtn">▶ Start Trace</button>
             <button onclick="stopTrace()" class="danger" id="stopBtn" disabled>⏹ Stop</button>
+            <span id="wasmStatus" style="font-size: 13px; color: #8b949e;">Checking sandbox...</span>
         </div>
         
         <div class="trace-section" id="traceSection">
@@ -277,14 +278,17 @@
         
         async function loadSampleContext(type) {
             try {
+                const resp = await fetch(`/api/sample/${type}`);
+                if (!resp.ok) {
+                    const err = await resp.json().catch(() => ({}));
+                    alert('Failed to load sample: ' + (err.error || resp.statusText));
+                    return;
+                }
+                const data = await resp.json();
                 if (type === 'needle') {
-                    const resp = await fetch('/api/sample/needle');
-                    const data = await resp.json();
                     document.getElementById('query').value = "What is the secret password hidden in this text?";
                     document.getElementById('context').value = data.context;
                 } else if (type === 'codeqa') {
-                    const resp = await fetch('/api/sample/codeqa');
-                    const data = await resp.json();
                     document.getElementById('query').value = data.query;
                     document.getElementById('context').value = data.context;
                 }
@@ -486,6 +490,23 @@
             div.textContent = text;
             return div.innerHTML;
         }
+
+        // Check Wasm sandbox status on load
+        fetch('/api/status')
+            .then(r => r.json())
+            .then(data => {
+                const el = document.getElementById('wasmStatus');
+                if (data.wasm_available) {
+                    el.textContent = 'Wasm sandbox: active';
+                    el.style.color = '#238636';
+                } else {
+                    el.textContent = 'Wasm sandbox: unavailable';
+                    el.style.color = '#d29922';
+                }
+            })
+            .catch(() => {
+                document.getElementById('wasmStatus').textContent = 'Wasm sandbox: unknown';
+            });
     </script>
 </body>
 </html>

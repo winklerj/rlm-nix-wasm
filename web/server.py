@@ -16,19 +16,39 @@ import aiohttp
 from rlm.config import load_config
 from rlm.cache.store import CacheStore
 from rlm.evaluator.lightweight import LightweightEvaluator
+from rlm.evaluator.wasm_sandbox import WasmSandbox
 from rlm.llm.client import LLMClient
 from rlm.llm.parser import parse_llm_output, ParseError
-from rlm.llm.prompts import SYSTEM_PROMPT
+from rlm.llm.prompts import EVAL_APPROACH_ADDENDUM, EVAL_OPS_ADDENDUM, SYSTEM_PROMPT
 from rlm.types import ExploreAction, CommitPlan, FinalAnswer, OpType
+
+# Default Wasm binary path (relative to project root)
+PROJECT_ROOT = Path(__file__).parent.parent
+DEFAULT_WASM_PATH = PROJECT_ROOT / ".wasm" / "python-3.12.0.wasm"
 
 # Store active sessions
 sessions = {}
+
+
+def _resolve_wasm_path() -> str | None:
+    """Return the Wasm binary path if it exists, else None."""
+    env_path = os.environ.get("RLM_WASM_PYTHON_PATH")
+    if env_path and Path(env_path).is_file():
+        return env_path
+    if DEFAULT_WASM_PATH.is_file():
+        return str(DEFAULT_WASM_PATH)
+    return None
 
 
 async def index_handler(request):
     """Serve the main HTML page."""
     html_path = Path(__file__).parent / "index.html"
     return web.FileResponse(html_path)
+
+
+async def status_handler(request):
+    """Report server capabilities (Wasm sandbox availability)."""
+    return web.json_response({"wasm_available": _resolve_wasm_path() is not None})
 
 
 async def sample_handler(request):
@@ -120,20 +140,35 @@ async def run_trace(session_id, params):
         query = params["query"]
         context = params["context"]
         
+        wasm_path = _resolve_wasm_path()
         config = load_config(
             model=model,
             max_recursion_depth=max_depth,
-            verbose=False
+            verbose=False,
+            wasm_python_path=wasm_path,
         )
-        
+
         client = LLMClient(config)
         cache = CacheStore(config.cache_dir)
-        evaluator = LightweightEvaluator(cache=cache)
-        
+
+        wasm_sandbox = None
+        if config.wasm_python_path:
+            wasm_sandbox = WasmSandbox(
+                python_wasm_path=config.wasm_python_path,
+                fuel=config.wasm_fuel,
+                memory_mb=config.wasm_memory_mb,
+            )
+
+        evaluator = LightweightEvaluator(cache=cache, wasm_sandbox=wasm_sandbox)
+
         # Build system prompt
+        eval_ops = EVAL_OPS_ADDENDUM if config.wasm_python_path else ""
+        eval_approach = EVAL_APPROACH_ADDENDUM if config.wasm_python_path else ""
         system_prompt = SYSTEM_PROMPT.format(
             context_chars=f"{len(context):,}",
-            query=query
+            query=query,
+            eval_ops=eval_ops,
+            eval_approach=eval_approach,
         )
         
         client.set_system_prompt(system_prompt)
@@ -448,6 +483,7 @@ def dict_to_action(d):
 def main():
     app = web.Application()
     app.router.add_get("/", index_handler)
+    app.router.add_get("/api/status", status_handler)
     app.router.add_get("/api/sample/{type}", sample_handler)
     app.router.add_get("/ws", websocket_handler)
     
