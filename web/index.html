@@ -228,6 +228,62 @@
                 border-radius: 6px;
                 white-space: pre-wrap;
             }
+
+            #narrativeSection {
+                background: #0d1117;
+                border: 2px solid #58a6ff;
+                border-radius: 8px;
+                padding: 20px;
+                margin-top: 20px;
+            }
+            #narrativeSection h3 {
+                color: #58a6ff;
+                margin-bottom: 10px;
+            }
+            #narrativeSection .narrative-loading {
+                color: #8b949e;
+                font-style: italic;
+            }
+            #narrativeSection .narrative-loading::after {
+                content: "";
+                animation: dots 1.5s steps(4, end) infinite;
+            }
+            @keyframes dots {
+                0% { content: ""; }
+                25% { content: "."; }
+                50% { content: ".."; }
+                75% { content: "..."; }
+            }
+            #narrativeContent h2 {
+                color: #58a6ff;
+                font-size: 16px;
+                margin: 18px 0 8px;
+            }
+            #narrativeContent h2:first-child {
+                margin-top: 0;
+            }
+            #narrativeContent p {
+                margin-bottom: 10px;
+                line-height: 1.6;
+            }
+            #narrativeContent strong {
+                color: #e6edf3;
+            }
+            #narrativeContent ul, #narrativeContent ol {
+                margin: 8px 0 12px 20px;
+            }
+            #narrativeContent li {
+                margin-bottom: 4px;
+            }
+            #narrativeContent code {
+                background: #161b22;
+                padding: 2px 6px;
+                border-radius: 3px;
+                font-size: 13px;
+            }
+            .narrative-error {
+                color: #f85149;
+            }
         </style>
     </head>
     <body>
@@ -468,6 +524,12 @@
                     <h3>✓ Final Answer</h3>
                     <pre id="finalAnswerText"></pre>
                 </div>
+
+                <div id="narrativeSection" class="hidden">
+                    <h3>📖 Investigation Narrative</h3>
+                    <div id="narrativeLoading" class="narrative-loading">Generating narrative summary</div>
+                    <div id="narrativeContent"></div>
+                </div>
             </div>
         </div>
 
@@ -627,6 +689,15 @@
                         totalTokens += msg.count;
                         document.getElementById("tokenCount").textContent =
                             totalTokens.toLocaleString();
+                        break;
+                    case "narrative_pending":
+                        showNarrativePending();
+                        break;
+                    case "narrative":
+                        showNarrative(msg.content);
+                        break;
+                    case "narrative_error":
+                        showNarrativeError(msg.error);
                         break;
                 }
             }
@@ -812,14 +883,76 @@
                 clearInterval(timerInterval);
                 if (ws) {
                     ws.send(JSON.stringify({ type: "stop" }));
-                    ws.close();
+                    // Don't close WS immediately — let the server send the narrative first.
+                    // The server will finish and the WS onclose handler will clean up buttons.
                 }
                 document
                     .getElementById("pendingApproval")
                     .classList.add("hidden");
-                document.getElementById("startBtn").disabled = false;
                 document.getElementById("stopBtn").disabled = true;
                 document.getElementById("statusText").textContent = "Stopped";
+            }
+
+            function escapeHtml(text) {
+                const div = document.createElement("div");
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            function renderMarkdown(md) {
+                // Escape HTML first to prevent XSS, then apply markdown transforms
+                let html = escapeHtml(md)
+                    .replace(/^## (.+)$/gm, "<h2>$1</h2>")
+                    .replace(/^### (.+)$/gm, "<h3>$1</h3>")
+                    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+                    .replace(/\*(.+?)\*/g, "<em>$1</em>")
+                    .replace(/`([^`]+)`/g, "<code>$1</code>");
+
+                // Process lines into paragraphs and lists
+                const lines = html.split("\n");
+                let result = [];
+                let inList = false;
+                for (const line of lines) {
+                    const trimmed = line.trim();
+                    if (trimmed.startsWith("<h2>") || trimmed.startsWith("<h3>")) {
+                        if (inList) { result.push("</ul>"); inList = false; }
+                        result.push(trimmed);
+                    } else if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+                        if (!inList) { result.push("<ul>"); inList = true; }
+                        result.push("<li>" + trimmed.substring(2) + "</li>");
+                    } else if (trimmed === "") {
+                        if (inList) { result.push("</ul>"); inList = false; }
+                    } else {
+                        if (inList) { result.push("</ul>"); inList = false; }
+                        result.push("<p>" + trimmed + "</p>");
+                    }
+                }
+                if (inList) result.push("</ul>");
+                return result.join("\n");
+            }
+
+            function showNarrativePending() {
+                const section = document.getElementById("narrativeSection");
+                section.classList.remove("hidden");
+                document.getElementById("narrativeLoading").classList.remove("hidden");
+                document.getElementById("narrativeContent").textContent = "";
+            }
+
+            function showNarrative(content) {
+                document.getElementById("narrativeLoading").classList.add("hidden");
+                // Content is from our own LLM call, sanitized via escapeHtml in renderMarkdown
+                const el = document.getElementById("narrativeContent");
+                el.innerHTML = renderMarkdown(content);
+            }
+
+            function showNarrativeError(error) {
+                document.getElementById("narrativeLoading").classList.add("hidden");
+                const el = document.getElementById("narrativeContent");
+                el.textContent = "";
+                const p = document.createElement("p");
+                p.className = "narrative-error";
+                p.textContent = "Failed to generate narrative: " + error;
+                el.appendChild(p);
             }
 
             function clearTrace() {
@@ -835,6 +968,8 @@
                 document
                     .getElementById("pendingApproval")
                     .classList.add("hidden");
+                document.getElementById("narrativeSection").classList.add("hidden");
+                document.getElementById("narrativeContent").textContent = "";
                 document.getElementById("statusText").textContent = "Idle";
             }
 

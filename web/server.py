@@ -21,6 +21,7 @@ from rlm.evaluator.wasm_sandbox import WasmSandbox
 from rlm.llm.client import LLMClient
 from rlm.llm.parser import parse_llm_output, ParseError
 from rlm.llm.prompts import EVAL_APPROACH_ADDENDUM, EVAL_OPS_ADDENDUM, SYSTEM_PROMPT
+from rlm.narrative import generate_narrative
 from rlm.types import ExploreAction, CommitPlan, FinalAnswer, OpType
 
 # Default Wasm binary path (relative to project root)
@@ -144,8 +145,30 @@ async def handle_ws_message(session_id, data):
     
     elif msg_type == "stop":
         session["running"] = False
+        session["stopped"] = True
         if session.get("pending_event"):
             session["pending_event"].set()
+
+
+async def send_narrative(ws, *, query, context_len, model, steps, final_answer,
+                         total_tokens, elapsed_s, completed):
+    """Generate and send a narrative summary to the client."""
+    try:
+        await ws.send_json({"type": "narrative_pending"})
+        narrative = await asyncio.to_thread(
+            generate_narrative,
+            query=query,
+            context_len=context_len,
+            model=model,
+            steps=steps,
+            final_answer=final_answer,
+            total_tokens=total_tokens,
+            elapsed_s=elapsed_s,
+            completed=completed,
+        )
+        await ws.send_json({"type": "narrative", "content": narrative})
+    except Exception as e:
+        await ws.send_json({"type": "narrative_error", "error": str(e)})
 
 
 async def run_trace(session_id, params):
@@ -155,7 +178,11 @@ async def run_trace(session_id, params):
         return
     
     ws = session["ws"]
-    
+    history = []  # Collect step history for narrative
+    session["stopped"] = False
+    total_tokens = 0
+    run_start = time.monotonic()
+
     try:
         model = params.get("model", "gpt-4o-mini")
         max_depth = params.get("maxDepth", 1)
@@ -256,7 +283,11 @@ async def run_trace(session_id, params):
                 "raw": response[:1000],
                 "elapsed_s": round(llm_elapsed, 3)
             })
-            
+
+            # Track step for narrative (result filled in later)
+            current_step = {"mode": mode, "summary": summary, "action": action_to_dict(action), "result": "", "elapsed": round(llm_elapsed, 3)}
+            history.append(current_step)
+
             # Wait for approval
             session["pending_event"] = asyncio.Event()
             session["skip"] = False
@@ -286,11 +317,23 @@ async def run_trace(session_id, params):
             
             # Handle the action
             if isinstance(action, FinalAnswer):
+                total_elapsed = round(time.monotonic() - run_start, 3)
                 await ws.send_json({
                     "type": "final",
                     "answer": action.answer,
-                    "elapsed_s": round(time.monotonic() - run_start, 3)
+                    "elapsed_s": total_elapsed
                 })
+                await send_narrative(
+                    ws,
+                    query=query,
+                    context_len=len(context),
+                    model=model,
+                    steps=history,
+                    final_answer=action.answer,
+                    total_tokens=total_tokens,
+                    elapsed_s=total_elapsed,
+                    completed=True,
+                )
                 break
             
             elif isinstance(action, ExploreAction):
@@ -323,6 +366,10 @@ async def run_trace(session_id, params):
                         "result": result_str[:2000],
                         "elapsed_s": round(op_elapsed, 3)
                     })
+
+                    # Update history with result
+                    if history:
+                        history[-1]["result"] = result_str[:500]
 
                     llm_start = time.monotonic()
                     response = await asyncio.to_thread(
@@ -435,6 +482,10 @@ async def run_trace(session_id, params):
                         "result": str(final_result)[:2000]
                     })
 
+                    # Update history with commit result
+                    if history:
+                        history[-1]["result"] = str(final_result)[:500]
+
                     llm_start = time.monotonic()
                     response = await asyncio.to_thread(
                         client.send,
@@ -465,6 +516,22 @@ async def run_trace(session_id, params):
         })
     
     finally:
+        # Generate narrative for stopped runs that have history
+        if session.get("stopped") and history:
+            try:
+                await send_narrative(
+                    ws,
+                    query=params.get("query", ""),
+                    context_len=len(params.get("context", "")),
+                    model=params.get("model", "unknown"),
+                    steps=history,
+                    final_answer=None,
+                    total_tokens=total_tokens,
+                    elapsed_s=round(time.monotonic() - run_start, 3),
+                    completed=False,
+                )
+            except Exception:
+                pass  # WS may be closed
         session["running"] = False
 
 
