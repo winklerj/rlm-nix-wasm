@@ -41,7 +41,21 @@ def parse_llm_output(raw: str) -> LLMAction:
 
     mode = data.get("mode")
     if mode == "explore":
-        op_data = data["operation"]
+        op_data = data.get("operation")
+        if op_data is None:
+            # Recover from flat structure: {"mode": "explore", "op": "slice", "args": {...}}
+            if "op" in data:
+                op_data = {"op": data["op"], "args": data.get("args", {}), "bind": data.get("bind")}
+            else:
+                raise ParseError(
+                    'Explore mode requires an "operation" key with "op", "args", and optional "bind". '
+                    'Example: {"mode": "explore", "operation": {"op": "slice", "args": {"input": "context", "start": 0, "end": 100}, "bind": "peek"}}'
+                )
+        if "op" not in op_data:
+            raise ParseError(
+                'Operation object is missing the "op" field. '
+                'Expected: {"op": "<operation_name>", "args": {...}, "bind": "<variable_name>"}'
+            )
         return ExploreAction(
             operation=Operation(
                 op=OpType(op_data["op"]),
@@ -50,13 +64,19 @@ def parse_llm_output(raw: str) -> LLMAction:
             )
         )
     elif mode == "commit":
+        ops_data = data.get("operations")
+        if ops_data is None:
+            raise ParseError(
+                'Commit mode requires an "operations" array and an "output" variable name. '
+                'Example: {"mode": "commit", "operations": [{"op": "chunk", "args": {...}, "bind": "chunks"}], "output": "chunks"}'
+            )
         operations = [
             Operation(
                 op=OpType(op_data["op"]),
                 args=op_data.get("args", {}),
                 bind=op_data.get("bind"),
             )
-            for op_data in data["operations"]
+            for op_data in ops_data
         ]
         # Default output to last operation's bind if not specified
         output = data.get("output")
@@ -64,6 +84,12 @@ def parse_llm_output(raw: str) -> LLMAction:
             output = operations[-1].bind or "result"
         return CommitPlan(operations=operations, output=output or "result")
     elif mode == "final":
-        return FinalAnswer(answer=data["answer"])
+        answer = data.get("answer")
+        if answer is None:
+            raise ParseError(
+                'Final mode requires an "answer" field. '
+                'Example: {"mode": "final", "answer": "your answer here"}'
+            )
+        return FinalAnswer(answer=answer)
     else:
         raise ParseError(f"Unknown mode: {mode}")

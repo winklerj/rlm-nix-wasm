@@ -33,6 +33,31 @@ class TestExploreAction:
         assert isinstance(action, ExploreAction)
         assert action.operation.bind is None
 
+    def test_flat_structure_recovery(self):
+        """LLM returns op/args/bind at top level instead of nested under 'operation'."""
+        raw = json.dumps({
+            "mode": "explore",
+            "op": "slice",
+            "args": {"input": "context", "start": 0, "end": 100},
+            "bind": "peek",
+        })
+        action = parse_llm_output(raw)
+        assert isinstance(action, ExploreAction)
+        assert action.operation.op == OpType.SLICE
+        assert action.operation.args["start"] == 0
+        assert action.operation.bind == "peek"
+
+    def test_flat_structure_no_bind(self):
+        raw = json.dumps({
+            "mode": "explore",
+            "op": "count",
+            "args": {"input": "context"},
+        })
+        action = parse_llm_output(raw)
+        assert isinstance(action, ExploreAction)
+        assert action.operation.op == OpType.COUNT
+        assert action.operation.bind is None
+
     def test_grep(self):
         raw = json.dumps({
             "mode": "explore",
@@ -129,8 +154,24 @@ class TestErrorHandling:
             parse_llm_output(json.dumps({"answer": "42"}))
 
     def test_missing_operation_field(self):
-        with pytest.raises(KeyError):
+        with pytest.raises(ParseError, match='requires an "operation" key'):
             parse_llm_output(json.dumps({"mode": "explore"}))
+
+    def test_missing_operations_in_commit(self):
+        with pytest.raises(ParseError, match='requires an "operations" array'):
+            parse_llm_output(json.dumps({"mode": "commit"}))
+
+    def test_missing_answer_in_final(self):
+        with pytest.raises(ParseError, match='requires an "answer" field'):
+            parse_llm_output(json.dumps({"mode": "final"}))
+
+    def test_missing_op_in_operation(self):
+        raw = json.dumps({
+            "mode": "explore",
+            "operation": {"args": {"input": "context"}},
+        })
+        with pytest.raises(ParseError, match='missing the "op" field'):
+            parse_llm_output(raw)
 
     def test_invalid_op_type(self):
         raw = json.dumps({
