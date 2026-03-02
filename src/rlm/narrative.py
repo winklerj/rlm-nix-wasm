@@ -126,7 +126,7 @@ def generate_narrative(
     response = cast(
         ModelResponse,
         completion(
-            model="anthropic/claude-sonnet-4-6",
+            model="anthropic/claude-sonnet-4",
             messages=[
                 {"role": "system", "content": NARRATIVE_SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt},
