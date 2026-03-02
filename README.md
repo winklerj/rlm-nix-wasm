@@ -32,6 +32,37 @@ rlm run -q "What are the unique user IDs?" -c server.log --wasm-python ./python.
 
 See [How-to Guides](docs/how-to-guides.md) for setup details and [Explanation](docs/explanation.md) for design rationale.
 
+## Docker
+
+Run without installing Nix or managing Python environments.
+
+```bash
+# 1. Create a .env file with your API key
+echo "ANTHROPIC_API_KEY=sk-ant-..." > .env
+
+# 2. Build and start the web demo
+docker compose up --build
+# Open http://localhost:8765
+```
+
+To run the CLI against a local file, put it in a `data/` directory:
+
+```bash
+cp server.log data/
+docker compose run --rm rlm rlm run \
+  -q "How many unique users?" \
+  -c /app/data/server.log \
+  --wasm-python /app/.wasm/python-3.12.0.wasm
+```
+
+Or mount an arbitrary file directly:
+
+```bash
+docker compose run --rm -v ~/server.log:/app/input.log rlm \
+  rlm run -q "How many unique users?" -c /app/input.log \
+  --wasm-python /app/.wasm/python-3.12.0.wasm
+```
+
 ## Documentation
 
 | | |

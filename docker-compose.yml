@@ -1,0 +1,17 @@
+services:
+  rlm:
+    build: .
+    ports:
+      - "8765:8765"
+    env_file:
+      - .env
+    environment:
+      - PORT=8765
+    volumes:
+      # Persist cache across restarts
+      - rlm-cache:/root/.cache/rlm-nix-wasm
+      # Mount local data directory for log files, contexts, etc.
+      - ./data:/app/data
+
+volumes:
+  rlm-cache:
