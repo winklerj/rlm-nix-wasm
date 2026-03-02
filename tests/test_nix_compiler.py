@@ -144,8 +144,8 @@ class TestUnsupportedOps:
 
 
 class TestNixNotInstalled:
-    def test_use_nix_without_nix_raises(self):
-        """When --use-nix is set but Nix isn't installed, should raise clear error."""
+    def test_nix_enabled_without_nix_installed_raises(self):
+        """When Nix sandboxing is enabled but Nix isn't installed, should raise clear error."""
         from unittest.mock import patch
 
         from rlm.types import RLMConfig

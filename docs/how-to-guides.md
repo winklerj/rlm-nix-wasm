@@ -51,20 +51,20 @@ cat server.log | rlm run -q "How many 500 errors?"
 curl -s https://example.com/data.csv | rlm run -q "What is the average of column 3?"
 ```
 
-## How to enable Nix sandboxing
+## How to disable Nix sandboxing
 
-Install [Nix](https://nixos.org/download.html), then pass `--use-nix`:
+Nix sandboxing is enabled by default. Operations are compiled into Nix derivations that run in isolated sandboxes with no network access and no filesystem access outside the build directory. Independent operations build in parallel automatically.
+
+If you don't have Nix installed or want to skip Nix sandboxing, pass `--no-nix`:
 
 ```bash
-rlm run -q "Process this data" -c data.txt --use-nix
+rlm run -q "Process this data" -c data.txt --no-nix
 ```
 
-This compiles operations into Nix derivations that run in isolated sandboxes with no network access and no filesystem access outside the build directory. Independent operations build in parallel automatically.
-
-To enable Nix by default:
+To disable Nix by default:
 
 ```bash
-export RLM_USE_NIX=true
+export RLM_NO_NIX=true
 ```
 
 ## How to enable Wasm eval

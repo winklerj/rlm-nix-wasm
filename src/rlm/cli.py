@@ -55,7 +55,7 @@ def list_model_pricing() -> None:
 @click.option("--child-model", default=None, help="LLM model for recursive sub-calls (defaults to --model).")
 @click.option("--max-explore", default=None, type=int, help="Max explore steps.")
 @click.option("--max-depth", default=None, type=int, help="Max recursion depth.")
-@click.option("--use-nix", is_flag=True, default=False, help="Use Nix for sandboxing.")
+@click.option("--no-nix", is_flag=True, default=False, help="Disable Nix sandboxing.")
 @click.option("--wasm-python", type=click.Path(), default=None,
               help="Path to python.wasm for sandboxed code execution.")
 @click.option("--verbose", "-v", is_flag=True, default=False, help="Verbose output.")
@@ -68,7 +68,7 @@ def run(
     child_model: str | None,
     max_explore: int | None,
     max_depth: int | None,
-    use_nix: bool,
+    no_nix: bool,
     wasm_python: str | None,
     verbose: bool,
     trace: bool,
@@ -79,7 +79,7 @@ def run(
         child_model=child_model,
         max_explore_steps=max_explore,
         max_recursion_depth=max_depth,
-        use_nix=use_nix,
+        use_nix=not no_nix,
         wasm_python_path=Path(wasm_python) if wasm_python else None,
         verbose=verbose,
     )
@@ -98,8 +98,7 @@ def run(
         if config.child_model:
             console.print(f"[dim]Child model: {config.child_model}[/dim]")
         console.print(f"[dim]Context: {len(context_text):,} chars[/dim]")
-        if config.use_nix:
-            console.print("[dim]Nix sandboxing: enabled[/dim]")
+        console.print(f"[dim]Nix sandboxing: {'enabled' if config.use_nix else 'disabled'}[/dim]")
         if config.wasm_python_path:
             console.print(f"[dim]Wasm sandbox: {config.wasm_python_path}[/dim]")
 
@@ -204,7 +203,7 @@ def eval_download(benchmark: str) -> None:
               help="LLM model for recursive sub-calls (defaults to --model).")
 @click.option("--max-explore", default=None, type=int, help="Max explore steps.")
 @click.option("--max-depth", default=None, type=int, help="Max recursion depth.")
-@click.option("--use-nix", is_flag=True, default=False, help="Use Nix for sandboxing.")
+@click.option("--no-nix", is_flag=True, default=False, help="Disable Nix sandboxing.")
 @click.option("--wasm-python", type=click.Path(), default=None,
               help="Path to python.wasm for sandboxed code execution.")
 @click.option("--temperature", default=0.3, type=float,
@@ -226,7 +225,7 @@ def eval_run(
     child_model: str | None,
     max_explore: int | None,
     max_depth: int | None,
-    use_nix: bool,
+    no_nix: bool,
     wasm_python: str | None,
     temperature: float,
     output: str,
@@ -249,7 +248,7 @@ def eval_run(
         child_model=child_model,
         max_explore_steps=max_explore,
         max_recursion_depth=max_depth,
-        use_nix=use_nix,
+        use_nix=not no_nix,
         wasm_python_path=Path(wasm_python) if wasm_python else None,
         temperature=temperature,
         verbose=verbose,

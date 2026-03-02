@@ -25,7 +25,7 @@ rlm run [OPTIONS]
 | `--child-model` | | string | same as `--model` | LLM model for recursive sub-calls |
 | `--max-explore` | | int | `20` | Maximum explore steps before forcing a commit |
 | `--max-depth` | | int | `1` | Maximum recursion depth |
-| `--use-nix` | | flag | `false` | Compile operations to Nix derivations |
+| `--no-nix` | | flag | `false` | Disable Nix derivation compilation |
 | `--wasm-python` | | path | none | Path to python.wasm for sandboxed code execution |
 | `--verbose` | `-v` | flag | `false` | Show model name, context size, operation trace, and timing |
 | `--trace` | | flag | `false` | Write execution trace (JSON) to `traces/` directory with auto-generated timestamp filename |
@@ -65,7 +65,7 @@ All settings can be configured via environment variables. CLI flags take precede
 | Max recursion depth | `RLM_MAX_RECURSION_DEPTH` | `--max-depth` | `1` |
 | Max parallel jobs | `RLM_MAX_PARALLEL_JOBS` | -- | `4` |
 | Cache directory | `RLM_CACHE_DIR` | -- | `~/.cache/rlm-nix-wasm` |
-| Enable Nix | `RLM_USE_NIX` | `--use-nix` | `false` |
+| Disable Nix | `RLM_NO_NIX` | `--no-nix` | `false` |
 | Verbose output | `RLM_VERBOSE` | `--verbose` | `false` |
 | Wasm python.wasm path | `RLM_WASM_PYTHON_PATH` | `--wasm-python` | none |
 | Wasm fuel limit | `RLM_WASM_FUEL` | -- | `10000000000` |
@@ -342,6 +342,6 @@ When `--child-model` is used, the `model` field in child nodes reflects the chil
 2. `RLMOrchestrator` initializes an `LLMClient` conversation with the system prompt from `prompts.py`.
 3. The orchestrator enters the **explore loop**: sends the query to the LLM, receives a JSON response, parses it with `parser.py`, executes the requested operation via `lightweight.py` (with cache lookup via `store.py`), and appends the result to the conversation.
 4. When the LLM switches to commit mode, the orchestrator executes the **commit plan**: a sequence of operations with variable bindings. `rlm_call` operations spawn recursive `RLMOrchestrator` instances. `map` operations use a `ThreadPoolExecutor` for parallelism.
-5. When the Nix path is enabled (`--use-nix`), non-recursive operations are compiled to Nix expressions via `compiler.py` and built via `builder.py`.
+5. Nix sandboxing is enabled by default. Non-recursive operations are compiled to Nix expressions via `compiler.py` and built via `builder.py` (disable with `--no-nix`).
 6. When the LLM switches to final mode, the orchestrator returns the answer.
 7. At maximum recursion depth, the orchestrator bypasses the protocol and makes a direct LLM call with the context truncated to 100K characters.

@@ -64,7 +64,7 @@ Nix's build system provides three properties that align with rlm-nix-wasm's need
 
 3. **Automatic parallelism**: `nix-build` automatically schedules independent derivations in parallel, up to a configurable number of jobs. rlm-nix-wasm gets parallelism for free by compiling its operations into a dependency graph of Nix derivations.
 
-Nix integration is optional. Without it, rlm-nix-wasm still provides caching and parallelism (via Python's `ThreadPoolExecutor`), but without process-level isolation.
+Nix integration is enabled by default (disable with `--no-nix`). Without it, rlm-nix-wasm still provides caching and parallelism (via Python's `ThreadPoolExecutor`), but without process-level isolation.
 
 ## Defense in depth
 
@@ -79,7 +79,7 @@ rlm-nix-wasm uses multiple layers of protection:
 | **Operation timeout** | Yes | Each sandboxed operation times out after 30 seconds. |
 | **Wasm sandbox** | Optional | WebAssembly sandbox for eval operations. Hardware-level memory isolation, no FS/network. |
 | **Bubblewrap sandbox** | Optional | Lightweight Linux container with read-only filesystem and no network. |
-| **Nix derivation sandbox** | Optional | Full build-time isolation via Nix. No network, no host filesystem access. |
+| **Nix derivation sandbox** | Default | Full build-time isolation via Nix. No network, no host filesystem access. |
 
 The outermost layer (structured DSL) is the most important. Even without any sandboxing, the LLM cannot execute arbitrary code -- it can only request operations from the predefined set.
 

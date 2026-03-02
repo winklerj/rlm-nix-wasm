@@ -21,7 +21,7 @@ def load_config(**overrides: Any) -> RLMConfig:
         "RLM_TEMPERATURE": ("temperature", float),
         "RLM_MAX_RESULT_CHARS": ("max_result_chars", int),
         "RLM_CACHE_DIR": ("cache_dir", Path),
-        "RLM_USE_NIX": ("use_nix", lambda x: x.lower() in ("1", "true", "yes")),
+        "RLM_NO_NIX": ("use_nix", lambda x: x.lower() not in ("1", "true", "yes")),
         "RLM_VERBOSE": ("verbose", lambda x: x.lower() in ("1", "true", "yes")),
         "RLM_WASM_PYTHON_PATH": ("wasm_python_path", Path),
         "RLM_WASM_FUEL": ("wasm_fuel", int),

@@ -75,8 +75,8 @@ class RLMOrchestrator:
             self.nix_builder = NixBuilder(max_jobs=config.max_parallel_jobs)
             if not self.nix_builder.available:
                 raise RuntimeError(
-                    "Nix is not installed but --use-nix was specified. "
-                    "Install Nix from https://nixos.org/ or remove --use-nix."
+                    "Nix is not installed but Nix sandboxing is enabled by default. "
+                    "Install Nix from https://nixos.org/ or pass --no-nix to disable."
                 )
         else:
             self.nix_builder = None  # type: ignore[assignment]

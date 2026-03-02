@@ -17,6 +17,7 @@ def config():
         max_explore_steps=5,
         max_commit_cycles=3,
         max_recursion_depth=1,
+        use_nix=False,
         verbose=False,
     )
 

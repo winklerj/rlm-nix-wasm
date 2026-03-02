@@ -61,7 +61,7 @@ The orchestrator (`orchestrator.py`) manages this loop: prompt LLM → parse res
 - **Evaluator** (`evaluator/lightweight.py`): Executes operations in-process. Operations are registered in the `EXPLORE_OPS` dict — add new ops by implementing the `OpExecutor` protocol (`ops/base.py`) and registering them.
 - **Cache** (`cache/store.py`): Content-addressed filesystem cache keyed by SHA256 of (op_type + args + input_hashes). Identical operations with identical inputs reuse results across runs.
 
-**Optional Nix sandboxing** (`nix/`): Compiles DSL operations to Nix derivations for isolated execution. Only imported when `--use-nix` is passed (lazy loading to avoid hard dependency).
+**Nix sandboxing** (`nix/`): Compiles DSL operations to Nix derivations for isolated execution. Imported by default; disabled with `--no-nix`.
 
 ### DSL Operations
 

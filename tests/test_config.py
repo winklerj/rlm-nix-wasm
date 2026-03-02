@@ -4,7 +4,9 @@ from rlm.config import load_config
 
 
 class TestLoadConfig:
-    def test_default_model(self):
+    def test_default_model(self, monkeypatch):
+        monkeypatch.delenv("RLM_MODEL", raising=False)
+        monkeypatch.delenv("RLM_CHILD_MODEL", raising=False)
         config = load_config()
         assert config.model == "claude-opus-4-5"
         assert config.child_model is None

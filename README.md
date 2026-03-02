@@ -2,7 +2,7 @@
 
 Sandboxed Recursive Language Models with Nix.
 
-rlm-nix-wasm lets LLMs break down large-context problems into smaller recursive sub-calls. Each call operates through a structured DSL instead of arbitrary code execution, with content-addressed caching and optional Nix sandboxing.
+rlm-nix-wasm lets LLMs break down large-context problems into smaller recursive sub-calls. Each call operates through a structured DSL instead of arbitrary code execution, with content-addressed caching and Nix sandboxing (enabled by default).
 
 ## Quick Start
 
