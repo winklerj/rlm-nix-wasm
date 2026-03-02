@@ -308,6 +308,25 @@
                 background: #30363d;
                 border-color: #58a6ff;
             }
+            .narrative-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+            .narrative-copy {
+                padding: 4px 12px;
+                background: #21262d;
+                color: #8b949e;
+                border: 1px solid #30363d;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 12px;
+            }
+            .narrative-copy:hover {
+                background: #30363d;
+                color: #c9d1d9;
+                border-color: #58a6ff;
+            }
         </style>
     </head>
     <body>
@@ -550,7 +569,10 @@
                 </div>
 
                 <div id="narrativeSection" class="hidden">
-                    <h3>📖 Investigation Narrative</h3>
+                    <div class="narrative-header">
+                        <h3>📖 Investigation Narrative</h3>
+                        <button id="narrativeCopy" class="narrative-copy hidden" onclick="copyNarrative()">Copy</button>
+                    </div>
                     <div id="narrativeLoading" class="narrative-loading">Generating narrative summary</div>
                     <div id="narrativeContent"></div>
                 </div>
@@ -967,6 +989,16 @@
                 // Content is from our own LLM call, sanitized via escapeHtml in renderMarkdown
                 const el = document.getElementById("narrativeContent");
                 el.innerHTML = renderMarkdown(content);
+                document.getElementById("narrativeCopy").classList.remove("hidden");
+            }
+
+            function copyNarrative() {
+                const text = document.getElementById("narrativeContent").innerText;
+                navigator.clipboard.writeText(text).then(function() {
+                    const btn = document.getElementById("narrativeCopy");
+                    btn.textContent = "Copied!";
+                    setTimeout(function() { btn.textContent = "Copy"; }, 1500);
+                });
             }
 
             function showNarrativeError(error) {
@@ -1004,6 +1036,7 @@
                     .classList.add("hidden");
                 document.getElementById("narrativeSection").classList.add("hidden");
                 document.getElementById("narrativeContent").textContent = "";
+                document.getElementById("narrativeCopy").classList.add("hidden");
                 document.getElementById("statusText").textContent = "Idle";
             }
 
