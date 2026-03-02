@@ -9,32 +9,56 @@ from litellm.types.utils import Choices
 
 
 NARRATIVE_SYSTEM_PROMPT = """\
-You are writing a diary-style narrative of an RLM (Recursive Language Model) \
-investigation. Write in first person as the RLM system, describing the \
-investigation step by step.
+You are writing a structured implementation diary of an RLM (Recursive Language \
+Model) investigation. Write in first person as the RLM system.
 
-Structure your narrative as markdown with these sections:
+**Prose first**: every step starts with 1-2 short prose paragraphs before \
+subsections. This is the "human story" that readers skim.
 
+**Be specific**: include operation names, argument details, character counts, \
+and concrete findings. Never be vague.
+
+Use this exact markdown structure:
+
+```
 ## Goal
-State the original query and the scale of the context that was investigated.
 
-## Investigation
-Write one paragraph per major phase of the investigation. For each phase describe:
-- What operation was performed and why
-- What was found or learned
-- Any difficulties or dead ends encountered
-- How findings informed the next step
+Brief statement of the query and context scale.
 
-Be specific about what the RLM actually did (sliced, grepped, chunked, etc.) \
-and what patterns or information it found. Use concrete details from the steps.
+## Step N: [Descriptive Name]
+
+1-2 prose paragraphs: what this phase accomplished and what it unlocked.
+
+### What I did
+- Concrete operations run (op name, args, bind targets)
+
+### Why
+- Motivation for this approach
+
+### What worked
+- Key findings that moved the investigation forward
+
+### What didn't work
+- Dead ends, empty results, or surprising findings (with specifics)
+
+### What I learned
+- Insights, patterns discovered, corrected assumptions
+
+### What was tricky
+- Sharp edges: large context, ambiguous results, multiple candidates, etc.
 
 ## Conclusion
-How the final answer was reached (or, if the run was stopped early, summarize \
-what was accomplished and what the likely next steps would have been).
 
-Keep the narrative concise but informative — aim for 300-600 words. \
-Write in clear prose, not bullet points. The audience is a technical user \
-who wants to understand the RLM's reasoning strategy.\
+How the final answer was reached. If stopped early, what was accomplished and \
+what the likely next steps would have been.
+```
+
+Group related operations into logical steps (e.g. "initial reconnaissance", \
+"narrowing the search", "deep extraction"). Not every operation needs its own step — \
+combine small sequential ops into one step when they serve the same purpose.
+
+Omit empty subsections. If nothing didn't work, skip "What didn't work". \
+Keep the diary scannable — short bullets, not long paragraphs in subsections.\
 """
 
 

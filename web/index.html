@@ -257,10 +257,19 @@
             #narrativeContent h2 {
                 color: #58a6ff;
                 font-size: 16px;
-                margin: 18px 0 8px;
+                margin: 24px 0 8px;
+                padding-bottom: 4px;
+                border-bottom: 1px solid #21262d;
             }
             #narrativeContent h2:first-child {
                 margin-top: 0;
+            }
+            #narrativeContent h3 {
+                color: #8b949e;
+                font-size: 13px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                margin: 14px 0 4px;
             }
             #narrativeContent p {
                 margin-bottom: 10px;
@@ -270,10 +279,11 @@
                 color: #e6edf3;
             }
             #narrativeContent ul, #narrativeContent ol {
-                margin: 8px 0 12px 20px;
+                margin: 4px 0 10px 20px;
             }
             #narrativeContent li {
-                margin-bottom: 4px;
+                margin-bottom: 3px;
+                font-size: 14px;
             }
             #narrativeContent code {
                 background: #161b22;
@@ -902,8 +912,8 @@
             function renderMarkdown(md) {
                 // Escape HTML first to prevent XSS, then apply markdown transforms
                 let html = escapeHtml(md)
-                    .replace(/^## (.+)$/gm, "<h2>$1</h2>")
                     .replace(/^### (.+)$/gm, "<h3>$1</h3>")
+                    .replace(/^## (.+)$/gm, "<h2>$1</h2>")
                     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
                     .replace(/\*(.+?)\*/g, "<em>$1</em>")
                     .replace(/`([^`]+)`/g, "<code>$1</code>");
