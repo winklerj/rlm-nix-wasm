@@ -7,11 +7,16 @@ rlm-nix-wasm lets LLMs break down large-context problems into smaller recursive 
 ## Quick Start
 
 ```bash
-pip install -e .
-export OPENAI_API_KEY=sk-...
-rlm run -q "How many unique users are in this log?" -c server.log
-rlm run -q "How many unique users are in this log?" -c server.log -v --trace
-rlm list-model-pricing
+# Install dependencies (requires Nix)
+nix-shell --run "uv pip install -e ."
+
+# Set your API key (loaded automatically from .env)
+echo "ANTHROPIC_API_KEY=sk-ant-..." > .env
+
+# Run a query (always use nix-shell for native dependency support)
+nix-shell --run "uv run rlm run -q 'How many unique users are in this log?' -c server.log --wasm-python .wasm/python-3.12.0.wasm"
+nix-shell --run "uv run rlm run -q 'How many unique users are in this log?' -c server.log --wasm-python .wasm/python-3.12.0.wasm -v --trace"
+nix-shell --run "uv run rlm list-model-pricing"
 ```
 
 ## Wasm Code Execution
@@ -27,7 +32,7 @@ curl -L -o python.wasm \
   "https://github.com/vmware-labs/webassembly-language-runtimes/releases/download/python/3.12.0%2B20231211-040d5a6/python-3.12.0.wasm"
 
 # 3. Run with Wasm eval enabled
-rlm run -q "What are the unique user IDs?" -c server.log --wasm-python ./python.wasm
+nix-shell --run "uv run rlm run -q 'What are the unique user IDs?' -c server.log --wasm-python ./python.wasm"
 ```
 
 See [How-to Guides](docs/how-to-guides.md) for setup details and [Explanation](docs/explanation.md) for design rationale.

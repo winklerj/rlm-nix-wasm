@@ -2,6 +2,11 @@
 
 Practical directions for accomplishing specific tasks with rlm-nix-wasm.
 
+> **Note:** All `rlm` commands must be run inside `nix-shell` to set up native library paths. The examples below show bare `rlm` commands for readability — in practice, prefix them with `nix-shell --run "uv run ..."`. For example:
+> ```bash
+> nix-shell --run "uv run rlm run -q 'your question' -c file.txt"
+> ```
+
 ## How to use a different LLM model
 
 Pass `--model` (or `-m`) with any [litellm-supported model identifier](https://docs.litellm.ai/docs/providers):
@@ -224,18 +229,18 @@ This shows each model name, plus input and output price per 1M tokens.
 Install development dependencies:
 
 ```bash
-uv sync --extra dev
+nix-shell --run "uv pip install -e '.[dev]'"
 ```
 
 Run the test suite:
 
 ```bash
-uv run pytest
+nix-shell --run "uv run pytest"
 ```
 
 Run the linter and type checker:
 
 ```bash
-uv run ruff check src/
-uv run mypy src/rlm
+nix-shell --run "uv run ruff check src/"
+nix-shell --run "uv run mypy src/"
 ```

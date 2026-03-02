@@ -4,28 +4,30 @@ This tutorial walks you through installing rlm-nix-wasm, running your first quer
 
 ## Prerequisites
 
-- Python 3.11 or later
-- An API key for an LLM provider (this tutorial uses OpenAI, but any [litellm-supported provider](https://docs.litellm.ai/docs/providers) works)
+- [Nix](https://nixos.org/download.html) (provides native dependencies via `nix-shell`)
+- [uv](https://docs.astral.sh/uv/) (Python package manager)
+- An API key for an LLM provider (this tutorial uses Anthropic Claude, but any [litellm-supported provider](https://docs.litellm.ai/docs/providers) works)
+
+> **Note:** All `rlm` commands must be run inside `nix-shell` to set up native library paths (numpy, tokenizers, etc.). The examples below show bare `rlm` commands for readability — in practice, prefix them with `nix-shell --run "uv run ..."`. For example:
+> ```bash
+> nix-shell --run "uv run rlm run -q 'your question' -c file.txt"
+> ```
 
 ## Install rlm-nix-wasm
 
 ```bash
-pip install -e .
-```
-
-Or using [uv](https://docs.astral.sh/uv/):
-
-```bash
-uv sync
+nix-shell --run "uv pip install -e ."
 ```
 
 ## Set your API key
 
+Create a `.env` file in the project root (auto-loaded via python-dotenv):
+
 ```bash
-export OPENAI_API_KEY=sk-...
+echo "ANTHROPIC_API_KEY=sk-ant-..." > .env
 ```
 
-For Anthropic, use `ANTHROPIC_API_KEY` instead. rlm-nix-wasm uses litellm, so any supported provider works.
+rlm-nix-wasm uses litellm, so any supported provider works (set the appropriate API key variable).
 
 ## Create a sample data file
 

@@ -2,6 +2,11 @@
 
 Complete specification of the rlm-nix-wasm CLI, operations, configuration, and architecture.
 
+> **Note:** All `rlm` commands must be run inside `nix-shell` to set up native library paths. Prefix commands with `nix-shell --run "uv run ..."`. For example:
+> ```bash
+> nix-shell --run "uv run rlm run -q 'your question' -c file.txt"
+> ```
+
 ## CLI Commands
 
 ### `rlm run`
