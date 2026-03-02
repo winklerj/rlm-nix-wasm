@@ -7,8 +7,17 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends gcc g++ curl && \
     rm -rf /var/lib/apt/lists/*
 
+# Install Nix (single-user mode for containers)
+RUN curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | \
+    sh -s -- install linux --no-confirm --init none
+ENV PATH="/nix/var/nix/profiles/default/bin:${PATH}"
+
 # Install uv for fast dependency resolution
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Copy shell.nix and pre-populate the nix-shell environment
+COPY shell.nix ./
+RUN nix-shell --run "echo 'nix-shell deps cached'"
 
 # Copy everything needed for install
 COPY pyproject.toml uv.lock ./
