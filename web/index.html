@@ -205,6 +205,7 @@
             
             <div style="display: flex; gap: 10px;">
                 <button onclick="loadSampleContext('needle')">Load Needle Test</button>
+                <button onclick="loadSampleContext('needle_hard')" class="secondary">Load Needle (Hard)</button>
                 <button onclick="loadSampleContext('codeqa')" class="secondary">Load CodeQA</button>
                 <input type="file" id="fileInput" style="display: none;" onchange="loadFile(event)">
                 <button onclick="document.getElementById('fileInput').click()" class="secondary">Load File</button>
@@ -291,6 +292,9 @@
                 const data = await resp.json();
                 if (type === 'needle') {
                     document.getElementById('query').value = "What is the secret password hidden in this text?";
+                    document.getElementById('context').value = data.context;
+                } else if (type === 'needle_hard') {
+                    document.getElementById('query').value = data.query;
                     document.getElementById('context').value = data.context;
                 } else if (type === 'codeqa') {
                     document.getElementById('query').value = data.query;

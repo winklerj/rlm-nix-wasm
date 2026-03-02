@@ -4,9 +4,7 @@ __pycache__/
 .pytest_cache/
 dist/
 build/
-data/
 .env
 .wasm/
 traces/
 .hypothesis/
-

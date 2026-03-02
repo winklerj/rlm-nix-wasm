@@ -62,6 +62,13 @@ async def sample_handler(request):
             return web.json_response({
                 "context": context_file.read_text()
             })
+    elif sample_type == "needle_hard":
+        context_file = data_dir / "needle_hard_context.txt"
+        if context_file.exists():
+            return web.json_response({
+                "query": "According to Dr. Henrik Solvaard's field report from the Vereina tunnel project, what was the concentration of dissolved lithium carbonate found in the aquifer water?",
+                "context": context_file.read_text()
+            })
     elif sample_type == "codeqa":
         context_file = data_dir / "codeqa_context.txt"
         question_file = data_dir / "codeqa_question.json"
