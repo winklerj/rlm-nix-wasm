@@ -70,6 +70,13 @@ async def sample_handler(request):
                 "query": "According to the highland mine inspection, what was the background sulfate level recorded at the site that had been closed the longest?",
                 "context": context_file.read_text()
             })
+    elif sample_type == "needle_nightmare":
+        context_file = data_dir / "needle_nightmare_context.txt"
+        if context_file.exists():
+            return web.json_response({
+                "query": "Under the authority's revised emergency protocol, what manganese concentration must the facility that issued boil-water advisories in 2022 report in its engineering review?",
+                "context": context_file.read_text()
+            })
     elif sample_type == "codeqa":
         context_file = data_dir / "codeqa_context.txt"
         question_file = data_dir / "codeqa_question.json"

@@ -325,6 +325,12 @@
                         Load Needle (Hard)
                     </button>
                     <button
+                        onclick="loadSampleContext('needle_nightmare')"
+                        class="secondary"
+                    >
+                        Load Needle (Nightmare)
+                    </button>
+                    <button
                         onclick="loadSampleContext('codeqa')"
                         class="secondary"
                     >
@@ -501,6 +507,9 @@
                             "What is the secret password hidden in this text?";
                         document.getElementById("context").value = data.context;
                     } else if (type === "needle_hard") {
+                        document.getElementById("query").value = data.query;
+                        document.getElementById("context").value = data.context;
+                    } else if (type === "needle_nightmare") {
                         document.getElementById("query").value = data.query;
                         document.getElementById("context").value = data.context;
                     } else if (type === "codeqa") {
