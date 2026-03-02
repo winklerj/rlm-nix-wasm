@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from litellm import completion
+from typing import Any, cast
+
+from litellm import ModelResponse, completion
+from litellm.types.utils import Choices
 
 
 NARRATIVE_SYSTEM_PROMPT = """\
@@ -40,7 +43,7 @@ def generate_narrative(
     query: str,
     context_len: int,
     model: str,
-    steps: list[dict],
+    steps: list[dict[str, Any]],
     final_answer: str | None,
     total_tokens: int,
     elapsed_s: float,
@@ -97,7 +100,7 @@ def generate_narrative(
 
     user_prompt = "\n".join(parts)
 
-    response = completion(
+    response = cast(ModelResponse, completion(
         model="anthropic/claude-opus-4-6",
         messages=[
             {"role": "system", "content": NARRATIVE_SYSTEM_PROMPT},
@@ -105,6 +108,7 @@ def generate_narrative(
         ],
         temperature=0.5,
         max_tokens=2048,
-    )
+    ))
 
-    return response.choices[0].message.content or ""
+    choice = cast(Choices, response.choices[0])
+    return choice.message.content or ""
