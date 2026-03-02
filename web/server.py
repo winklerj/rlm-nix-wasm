@@ -66,7 +66,7 @@ async def sample_handler(request):
         context_file = data_dir / "needle_hard_context.txt"
         if context_file.exists():
             return web.json_response({
-                "query": "According to Dr. Henrik Solvaard's field report from the Vereina tunnel project, what was the concentration of dissolved lithium carbonate found in the aquifer water?",
+                "query": "According to the highland mine inspection, what was the background sulfate level recorded at the site that had been closed the longest?",
                 "context": context_file.read_text()
             })
     elif sample_type == "codeqa":
