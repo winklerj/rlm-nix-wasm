@@ -149,6 +149,11 @@ async def handle_ws_message(session_id, data):
         if session.get("pending_event"):
             session["pending_event"].set()
 
+    elif msg_type == "retry_narrative":
+        narrative_params = session.get("narrative_params")
+        if narrative_params:
+            await send_narrative(ws, **narrative_params)
+
 
 async def send_narrative(ws, *, query, context_len, model, steps, final_answer,
                          total_tokens, elapsed_s, completed):
@@ -323,17 +328,18 @@ async def run_trace(session_id, params):
                     "answer": action.answer,
                     "elapsed_s": total_elapsed
                 })
-                await send_narrative(
-                    ws,
+                narrative_params = dict(
                     query=query,
                     context_len=len(context),
                     model=model,
-                    steps=history,
+                    steps=list(history),
                     final_answer=action.answer,
                     total_tokens=total_tokens,
                     elapsed_s=total_elapsed,
                     completed=True,
                 )
+                session["narrative_params"] = narrative_params
+                await send_narrative(ws, **narrative_params)
                 break
             
             elif isinstance(action, ExploreAction):
@@ -519,17 +525,18 @@ async def run_trace(session_id, params):
         # Generate narrative for stopped runs that have history
         if session.get("stopped") and history:
             try:
-                await send_narrative(
-                    ws,
+                narrative_params = dict(
                     query=params.get("query", ""),
                     context_len=len(params.get("context", "")),
                     model=params.get("model", "unknown"),
-                    steps=history,
+                    steps=list(history),
                     final_answer=None,
                     total_tokens=total_tokens,
                     elapsed_s=round(time.monotonic() - run_start, 3),
                     completed=False,
                 )
+                session["narrative_params"] = narrative_params
+                await send_narrative(ws, **narrative_params)
             except Exception:
                 pass  # WS may be closed
         session["running"] = False
