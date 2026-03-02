@@ -1,4 +1,4 @@
-"""Post-run narrative summary generation using Claude Opus 4.6."""
+"""Post-run narrative summary generation."""
 
 from __future__ import annotations
 
@@ -6,7 +6,6 @@ from typing import Any, cast
 
 from litellm import ModelResponse, completion
 from litellm.types.utils import Choices
-
 
 NARRATIVE_SYSTEM_PROMPT = """\
 You are writing a structured implementation diary of an RLM (Recursive Language \
@@ -124,15 +123,28 @@ def generate_narrative(
 
     user_prompt = "\n".join(parts)
 
-    response = cast(ModelResponse, completion(
-        model="anthropic/claude-opus-4-6",
-        messages=[
-            {"role": "system", "content": NARRATIVE_SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ],
-        temperature=0.5,
-        max_tokens=2048,
-    ))
+    response = cast(
+        ModelResponse,
+        completion(
+            model="anthropic/claude-sonnet-4-6",
+            messages=[
+                {"role": "system", "content": NARRATIVE_SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.5,
+            max_tokens=2048,
+        ),
+    )
 
     choice = cast(Choices, response.choices[0])
-    return choice.message.content or ""
+
+    # Detect refusal or other non-stop finish reasons
+    finish = getattr(choice, "finish_reason", None)
+    if finish and finish not in ("stop", "end_turn", "length"):
+        raise RuntimeError(f"Narrative generation refused by the model (finish_reason={finish!r})")
+
+    content = choice.message.content or ""
+    if not content.strip():
+        raise RuntimeError("Narrative generation returned empty content")
+
+    return content
