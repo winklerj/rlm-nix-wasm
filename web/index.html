@@ -201,6 +201,12 @@
                 font-weight: 500;
             }
 
+            .step-time {
+                color: #8b949e;
+                font-size: 12px;
+                font-weight: normal;
+            }
+
             .hidden {
                 display: none;
             }
@@ -400,6 +406,9 @@
                     <div class="status-item">
                         Tokens: <span id="tokenCount">0</span>
                     </div>
+                    <div class="status-item">
+                        Time: <span id="elapsedTime">0.0s</span>
+                    </div>
                 </div>
 
                 <div id="steps"></div>
@@ -454,6 +463,15 @@
             let ws = null;
             let stepNumber = 0;
             let totalTokens = 0;
+            let timerInterval = null;
+            let runStartTime = null;
+
+            function formatTime(seconds) {
+                if (seconds < 60) return seconds.toFixed(1) + "s";
+                const m = Math.floor(seconds / 60);
+                const s = (seconds % 60).toFixed(1);
+                return m + "m " + s + "s";
+            }
 
             const samples = {
                 needle: {
@@ -530,6 +548,12 @@
                 ws.onopen = () => {
                     document.getElementById("statusText").textContent =
                         "Running";
+                    runStartTime = Date.now();
+                    timerInterval = setInterval(() => {
+                        const elapsed = (Date.now() - runStartTime) / 1000;
+                        document.getElementById("elapsedTime").textContent =
+                            formatTime(elapsed);
+                    }, 100);
                     ws.send(
                         JSON.stringify({
                             type: "start",
@@ -593,19 +617,61 @@
                 stepNumber++;
                 document.getElementById("stepCount").textContent = stepNumber;
 
+                const timeStr =
+                    msg.elapsed_s != null
+                        ? '<span class="step-time">' +
+                          formatTime(msg.elapsed_s) +
+                          "</span>"
+                        : "";
+
                 const stepsDiv = document.getElementById("steps");
                 const stepDiv = document.createElement("div");
                 stepDiv.className = "step";
-                stepDiv.innerHTML = `
-                <div class="step-header" onclick="this.nextElementSibling.classList.toggle('hidden')">
-                    <span><span class="step-type ${msg.mode}">${msg.mode.toUpperCase()}</span> Step ${stepNumber}: ${msg.summary || ""}</span>
-                    <span>▼</span>
-                </div>
-                <div class="step-content hidden">
-                    <h4>LLM Response</h4>
-                    <pre>${escapeHtml(JSON.stringify(msg.action, null, 2))}</pre>
-                </div>
-            `;
+
+                const header = document.createElement("div");
+                header.className = "step-header";
+                header.onclick = function () {
+                    this.nextElementSibling.classList.toggle("hidden");
+                };
+
+                const headerLeft = document.createElement("span");
+                const badge = document.createElement("span");
+                badge.className = "step-type " + msg.mode;
+                badge.textContent = msg.mode.toUpperCase();
+                headerLeft.appendChild(badge);
+                headerLeft.appendChild(
+                    document.createTextNode(
+                        " Step " +
+                            stepNumber +
+                            ": " +
+                            (msg.summary || ""),
+                    ),
+                );
+
+                const headerRight = document.createElement("span");
+                if (timeStr) {
+                    const timeSpan = document.createElement("span");
+                    timeSpan.className = "step-time";
+                    timeSpan.textContent = formatTime(msg.elapsed_s);
+                    headerRight.appendChild(timeSpan);
+                    headerRight.appendChild(document.createTextNode(" "));
+                }
+                headerRight.appendChild(document.createTextNode("\u25BC"));
+
+                header.appendChild(headerLeft);
+                header.appendChild(headerRight);
+
+                const content = document.createElement("div");
+                content.className = "step-content hidden";
+                const h4 = document.createElement("h4");
+                h4.textContent = "LLM Response";
+                const pre = document.createElement("pre");
+                pre.textContent = JSON.stringify(msg.action, null, 2);
+                content.appendChild(h4);
+                content.appendChild(pre);
+
+                stepDiv.appendChild(header);
+                stepDiv.appendChild(content);
                 stepsDiv.appendChild(stepDiv);
             }
 
@@ -614,10 +680,18 @@
                 const lastStep = stepsDiv.lastElementChild;
                 if (lastStep) {
                     const content = lastStep.querySelector(".step-content");
-                    content.innerHTML += `
-                    <h4>Result</h4>
-                    <pre>${escapeHtml(typeof msg.result === "string" ? msg.result.substring(0, 2000) : JSON.stringify(msg.result, null, 2))}</pre>
-                `;
+                    const h4 = document.createElement("h4");
+                    h4.textContent =
+                        msg.elapsed_s != null
+                            ? "Result (" + formatTime(msg.elapsed_s) + ")"
+                            : "Result";
+                    const pre = document.createElement("pre");
+                    pre.textContent =
+                        typeof msg.result === "string"
+                            ? msg.result.substring(0, 2000)
+                            : JSON.stringify(msg.result, null, 2);
+                    content.appendChild(h4);
+                    content.appendChild(pre);
                 }
             }
 
@@ -671,12 +745,22 @@
             }
 
             function showFinalAnswer(msg) {
+                clearInterval(timerInterval);
                 document
                     .getElementById("finalAnswer")
                     .classList.remove("hidden");
                 document.getElementById("finalAnswerText").textContent =
                     msg.answer;
-                document.getElementById("statusText").textContent = "Complete";
+                const timeStr =
+                    msg.elapsed_s != null
+                        ? " (" + formatTime(msg.elapsed_s) + ")"
+                        : "";
+                document.getElementById("statusText").textContent =
+                    "Complete" + timeStr;
+                if (msg.elapsed_s != null) {
+                    document.getElementById("elapsedTime").textContent =
+                        formatTime(msg.elapsed_s);
+                }
                 document.getElementById("startBtn").disabled = false;
                 document.getElementById("stopBtn").disabled = true;
             }
@@ -685,19 +769,29 @@
                 const stepsDiv = document.getElementById("steps");
                 const errorDiv = document.createElement("div");
                 errorDiv.className = "step";
-                errorDiv.innerHTML = `
-                <div class="step-header" style="background: #da3633;">
-                    <span>❌ Error</span>
-                </div>
-                <div class="step-content">
-                    <pre style="color: #f85149;">${escapeHtml(msg.error)}</pre>
-                </div>
-            `;
+
+                const header = document.createElement("div");
+                header.className = "step-header";
+                header.style.background = "#da3633";
+                const headerSpan = document.createElement("span");
+                headerSpan.textContent = "\u274C Error";
+                header.appendChild(headerSpan);
+
+                const content = document.createElement("div");
+                content.className = "step-content";
+                const pre = document.createElement("pre");
+                pre.style.color = "#f85149";
+                pre.textContent = msg.error;
+                content.appendChild(pre);
+
+                errorDiv.appendChild(header);
+                errorDiv.appendChild(content);
                 stepsDiv.appendChild(errorDiv);
                 document.getElementById("statusText").textContent = "Error";
             }
 
             function stopTrace() {
+                clearInterval(timerInterval);
                 if (ws) {
                     ws.send(JSON.stringify({ type: "stop" }));
                     ws.close();
@@ -711,22 +805,19 @@
             }
 
             function clearTrace() {
+                clearInterval(timerInterval);
+                runStartTime = null;
                 stepNumber = 0;
                 totalTokens = 0;
-                document.getElementById("steps").innerHTML = "";
+                document.getElementById("steps").replaceChildren();
                 document.getElementById("stepCount").textContent = "0";
                 document.getElementById("tokenCount").textContent = "0";
+                document.getElementById("elapsedTime").textContent = "0.0s";
                 document.getElementById("finalAnswer").classList.add("hidden");
                 document
                     .getElementById("pendingApproval")
                     .classList.add("hidden");
                 document.getElementById("statusText").textContent = "Idle";
-            }
-
-            function escapeHtml(text) {
-                const div = document.createElement("div");
-                div.textContent = text;
-                return div.innerHTML;
             }
 
             // Check Wasm sandbox status on load

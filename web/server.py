@@ -5,6 +5,7 @@ import asyncio
 import json
 import os
 import sys
+import time
 from pathlib import Path
 
 # Add parent to path for rlm imports
@@ -185,11 +186,14 @@ async def run_trace(session_id, params):
         commit_cycles = 0
         max_explore = config.max_explore_steps
         total_tokens = 0
-        
+        run_start = time.monotonic()
+
         # Initial message
+        llm_start = time.monotonic()
         response = await asyncio.to_thread(
             client.send, "Begin. The context variable is available."
         )
+        llm_elapsed = time.monotonic() - llm_start
         
         input_tokens, output_tokens = client.get_token_usage()
         total_tokens = input_tokens + output_tokens
@@ -205,11 +209,13 @@ async def run_trace(session_id, params):
                     "error": str(e)
                 })
                 # Try to recover
+                llm_start = time.monotonic()
                 response = await asyncio.to_thread(
                     client.send,
                     f"Your response was not valid JSON. Please respond with a valid JSON "
                     f"object with a 'mode' field. Error: {e}"
                 )
+                llm_elapsed = time.monotonic() - llm_start
                 continue
             
             # Determine action type and summary
@@ -233,7 +239,8 @@ async def run_trace(session_id, params):
                 "mode": mode,
                 "summary": summary,
                 "action": action_to_dict(action),
-                "raw": response[:1000]
+                "raw": response[:1000],
+                "elapsed_s": round(llm_elapsed, 3)
             })
             
             # Wait for approval
@@ -252,9 +259,11 @@ async def run_trace(session_id, params):
                 break
             
             if session.get("skip"):
+                llm_start = time.monotonic()
                 response = await asyncio.to_thread(
                     client.send, "Skipped. Try a different approach."
                 )
+                llm_elapsed = time.monotonic() - llm_start
                 continue
             
             # Use approved action (possibly edited)
@@ -265,40 +274,48 @@ async def run_trace(session_id, params):
             if isinstance(action, FinalAnswer):
                 await ws.send_json({
                     "type": "final",
-                    "answer": action.answer
+                    "answer": action.answer,
+                    "elapsed_s": round(time.monotonic() - run_start, 3)
                 })
                 break
             
             elif isinstance(action, ExploreAction):
                 explore_steps += 1
                 if explore_steps > max_explore:
+                    llm_start = time.monotonic()
                     response = await asyncio.to_thread(
                         client.send,
                         f"You have reached the maximum of {max_explore} explore steps. "
                         f"Please COMMIT a plan or provide a FINAL answer."
                     )
+                    llm_elapsed = time.monotonic() - llm_start
                     continue
                 
                 # Execute the operation
                 try:
+                    op_start = time.monotonic()
                     result = evaluator.execute(action.operation, bindings)
+                    op_elapsed = time.monotonic() - op_start
                     if action.operation.bind:
                         bindings[action.operation.bind] = result.value
-                    
+
                     # Truncate result for display
                     result_str = result.value
                     if len(result_str) > 4000:
                         result_str = result_str[:4000] + f"... [{len(result.value)} chars total]"
-                    
+
                     await ws.send_json({
                         "type": "result",
-                        "result": result_str[:2000]
+                        "result": result_str[:2000],
+                        "elapsed_s": round(op_elapsed, 3)
                     })
-                    
+
+                    llm_start = time.monotonic()
                     response = await asyncio.to_thread(
                         client.send,
                         f"Result of {action.operation.op.value}:\n{result_str}"
                     )
+                    llm_elapsed = time.monotonic() - llm_start
                     
                     input_tokens, output_tokens = client.get_token_usage()
                     await ws.send_json({"type": "tokens", "count": input_tokens + output_tokens})
@@ -308,9 +325,11 @@ async def run_trace(session_id, params):
                         "type": "error",
                         "error": f"Operation failed: {e}"
                     })
+                    llm_start = time.monotonic()
                     response = await asyncio.to_thread(
                         client.send, f"Error executing {action.operation.op.value}: {e}"
                     )
+                    llm_elapsed = time.monotonic() - llm_start
             
             elif isinstance(action, CommitPlan):
                 commit_cycles += 1
@@ -318,13 +337,8 @@ async def run_trace(session_id, params):
                 # Execute all operations in the plan
                 try:
                     for i, op in enumerate(action.operations):
-                        await ws.send_json({
-                            "type": "step",
-                            "mode": "commit",
-                            "summary": f"Op {i+1}/{len(action.operations)}: {op.op.value}",
-                            "action": {"op": op.op.value, "args": op.args, "bind": op.bind}
-                        })
-                        
+                        op_start = time.monotonic()
+
                         if op.op == OpType.RLM_CALL:
                             # Recursive call
                             query_text = op.args.get("query", "")
@@ -383,9 +397,19 @@ async def run_trace(session_id, params):
                             result = evaluator.execute(op, bindings)
                             result_value = result.value
                         
+                        op_elapsed = time.monotonic() - op_start
+
+                        await ws.send_json({
+                            "type": "step",
+                            "mode": "commit",
+                            "summary": f"Op {i+1}/{len(action.operations)}: {op.op.value}",
+                            "action": {"op": op.op.value, "args": op.args, "bind": op.bind},
+                            "elapsed_s": round(op_elapsed, 3)
+                        })
+
                         if op.bind:
                             bindings[op.bind] = result_value
-                        
+
                         if not session.get("running", False):
                             break
                     
@@ -396,11 +420,13 @@ async def run_trace(session_id, params):
                         "type": "result",
                         "result": str(final_result)[:2000]
                     })
-                    
+
+                    llm_start = time.monotonic()
                     response = await asyncio.to_thread(
                         client.send,
                         f"Commit plan executed. Result ({action.output}):\n{str(final_result)[:4000]}"
                     )
+                    llm_elapsed = time.monotonic() - llm_start
                     
                     input_tokens, output_tokens = client.get_token_usage()
                     await ws.send_json({"type": "tokens", "count": input_tokens + output_tokens})
@@ -411,9 +437,11 @@ async def run_trace(session_id, params):
                         "type": "error",
                         "error": f"Commit failed: {e}\n{traceback.format_exc()}"
                     })
+                    llm_start = time.monotonic()
                     response = await asyncio.to_thread(
                         client.send, f"Error executing commit plan: {e}"
                     )
+                    llm_elapsed = time.monotonic() - llm_start
     
     except Exception as e:
         import traceback
