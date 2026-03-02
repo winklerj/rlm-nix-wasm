@@ -18,7 +18,7 @@ from rlm.config import load_config
 from rlm.cache.store import CacheStore
 from rlm.evaluator.lightweight import LightweightEvaluator
 from rlm.evaluator.wasm_sandbox import WasmSandbox
-from rlm.llm.client import LLMClient
+from rlm.llm.client import LLMClient, LLMRefusalError
 from rlm.llm.parser import parse_llm_output, ParseError
 from rlm.llm.prompts import EVAL_APPROACH_ADDENDUM, EVAL_OPS_ADDENDUM, SYSTEM_PROMPT
 from rlm.narrative import generate_narrative
@@ -236,32 +236,57 @@ async def run_trace(session_id, params):
 
         # Initial message
         llm_start = time.monotonic()
-        response = await asyncio.to_thread(
-            client.send, "Begin. The context variable is available."
-        )
+        try:
+            response = await asyncio.to_thread(
+                client.send, "Begin. The context variable is available."
+            )
+        except LLMRefusalError as e:
+            await ws.send_json({
+                "type": "error",
+                "error": f"Model refused the request: {e}"
+            })
+            return
         llm_elapsed = time.monotonic() - llm_start
         
         input_tokens, output_tokens = client.get_token_usage()
         total_tokens = input_tokens + output_tokens
         await ws.send_json({"type": "tokens", "count": total_tokens})
         
+        max_parse_retries = 3
+        parse_retries = 0
         while session.get("running", False):
             # Parse the response
             try:
                 action = parse_llm_output(response)
+                parse_retries = 0  # Reset on success
             except ParseError as e:
+                parse_retries += 1
                 await ws.send_json({
                     "type": "error",
                     "error": str(e)
                 })
+                if parse_retries >= max_parse_retries:
+                    await ws.send_json({
+                        "type": "error",
+                        "error": f"LLM failed to produce valid JSON after {max_parse_retries} attempts. "
+                                 f"The model may be refusing this request."
+                    })
+                    break
                 # Try to recover
-                llm_start = time.monotonic()
-                response = await asyncio.to_thread(
-                    client.send,
-                    f"Your response was not valid JSON. Please respond with a valid JSON "
-                    f"object with a 'mode' field. Error: {e}"
-                )
-                llm_elapsed = time.monotonic() - llm_start
+                try:
+                    llm_start = time.monotonic()
+                    response = await asyncio.to_thread(
+                        client.send,
+                        f"Your response was not valid JSON. Please respond with a valid JSON "
+                        f"object with a 'mode' field. Error: {e}"
+                    )
+                    llm_elapsed = time.monotonic() - llm_start
+                except LLMRefusalError as ref_err:
+                    await ws.send_json({
+                        "type": "error",
+                        "error": f"Model refused the request: {ref_err}"
+                    })
+                    break
                 continue
             
             # Determine action type and summary

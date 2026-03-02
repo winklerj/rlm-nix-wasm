@@ -123,14 +123,23 @@ class RLMOrchestrator:
 
         explore_steps = 0
         commit_cycles = 0
+        max_parse_retries = 3
 
         response = self.llm.send("Begin. The context variable is available.")
 
+        parse_retries = 0
         while True:
             try:
                 action = parse_llm_output(response)
+                parse_retries = 0  # Reset on success
             except ParseError as e:
-                logger.warning("Parse error: %s", e)
+                parse_retries += 1
+                logger.warning("Parse error (%d/%d): %s", parse_retries, max_parse_retries, e)
+                if parse_retries >= max_parse_retries:
+                    raise RuntimeError(
+                        f"LLM failed to produce valid JSON after {max_parse_retries} attempts. "
+                        f"Last error: {e}"
+                    )
                 response = self.llm.send(
                     f"Your response was not valid JSON. Please respond with a valid JSON "
                     f"object with a 'mode' field. Error: {e}"

@@ -12,6 +12,11 @@ from rlm.trace import OrchestratorTrace, TraceCollector
 from rlm.types import RLMConfig
 
 
+class LLMRefusalError(Exception):
+    """The LLM refused to respond (e.g. safety filter triggered)."""
+    pass
+
+
 class LLMClient:
     """Manages LLM conversations for the explore/commit protocol."""
 
@@ -69,7 +74,17 @@ class LLMClient:
                 f"{call_in:,} in + {call_out:,} out tokens[/yellow]"
             )
 
-        assistant_message: str = response.choices[0].message.content or ""
+        choice = response.choices[0]
+        finish_reason = getattr(choice, "finish_reason", None)
+        if finish_reason and finish_reason not in ("stop", "end_turn", "length"):
+            raise LLMRefusalError(
+                f"LLM refused to respond (finish_reason={finish_reason!r})"
+            )
+
+        assistant_message: str = choice.message.content or ""
+        if not assistant_message.strip():
+            raise LLMRefusalError("LLM returned empty content")
+
         self.messages.append({"role": "assistant", "content": assistant_message})
 
         if self._trace_node is not None:
