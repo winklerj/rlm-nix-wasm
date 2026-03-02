@@ -214,6 +214,10 @@
         <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 15px;">
             <button onclick="startTrace()" id="startBtn">▶ Start Trace</button>
             <button onclick="stopTrace()" class="danger" id="stopBtn" disabled>⏹ Stop</button>
+            <label style="display: inline-flex; align-items: center; gap: 6px; margin-bottom: 0; cursor: pointer; user-select: none;">
+                <input type="checkbox" id="autoApprove" style="width: auto; margin: 0; cursor: pointer;">
+                <span style="font-size: 13px; color: #8b949e;">Auto-approve</span>
+            </label>
             <span id="wasmStatus" style="font-size: 13px; color: #8b949e;">Checking sandbox...</span>
         </div>
         
@@ -413,6 +417,10 @@
         }
         
         function showPendingApproval(msg) {
+            if (document.getElementById('autoApprove').checked) {
+                ws.send(JSON.stringify({ type: 'approve', action: msg.action }));
+                return;
+            }
             document.getElementById('pendingApproval').classList.remove('hidden');
             document.getElementById('pendingAction').textContent = JSON.stringify(msg.action, null, 2);
             document.getElementById('editAction').value = JSON.stringify(msg.action, null, 2);
