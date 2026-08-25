@@ -75,6 +75,8 @@ class EvalRunner:
         try:
             predicted_raw = orchestrator.run(task.question, task.context_text)
         except Exception as e:
+            if self.config.verbose:
+                self.console.print_exception()
             error = str(e)
 
         elapsed = time.monotonic() - start

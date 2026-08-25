@@ -149,6 +149,29 @@ class TestRecursion:
             assert result == "direct answer"
             mock_direct.assert_called_once()
 
+    def test_small_child_context_uses_direct_call(self, config):
+        """A child whose context is below min_recursive_chars is a direct call
+        even when depth would otherwise allow a full explore/commit loop."""
+        config.max_recursion_depth = 5
+        config.min_recursive_chars = 100
+        orch = RLMOrchestrator(config)
+
+        with patch.object(orch, '_direct_call', return_value="direct answer") as mock_direct:
+            result = orch.run("test", "tiny context", depth=1)
+            assert result == "direct answer"
+            mock_direct.assert_called_once()
+
+    def test_root_never_shortcut_by_size(self, config):
+        """The size rule only applies to children: the root (depth 0) always
+        runs the explore/commit loop, however small its context."""
+        config.min_recursive_chars = 10_000
+        orch = _make_orchestrator_with_responses(
+            config, [json.dumps({"mode": "final", "answer": "looped"})]
+        )
+        with patch.object(orch, '_direct_call') as mock_direct:
+            assert orch.run("test", "tiny context", depth=0) == "looped"
+            mock_direct.assert_not_called()
+
 
 class TestParseErrorRecovery:
     def test_recovers_from_bad_json(self, config):
@@ -280,3 +303,28 @@ class TestChildModel:
         expected_parent = 1000 * 0.01 + 500 * 0.05   # 35.0
         expected_child = 2000 * 0.001 + 1000 * 0.005  # 7.0
         assert total == approx(expected_parent + expected_child)
+
+
+class TestMapDirect:
+    """`map` pieces are single direct calls, never child explore/commit loops."""
+
+    def test_map_pieces_are_direct_calls_even_when_large(self, config):
+        config.min_recursive_chars = 10
+        config.max_recursion_depth = 1
+        orch = RLMOrchestrator(config)
+        with patch.object(RLMOrchestrator, '_direct_call', return_value="leaf") as direct:
+            out = orch._parallel_map("label these", ["x" * 5000, "y" * 5000], depth=0)
+        assert json.loads(out) == ["leaf", "leaf"]
+        assert direct.call_count == 2
+        # Pieces ran past max depth, i.e. they short-circuited to a direct call.
+        assert all(c.trace_node.depth == 2 for c in orch.child_orchestrators)
+
+    def test_map_direct_can_be_disabled(self, config):
+        config.min_recursive_chars = 10
+        config.max_recursion_depth = 1
+        config.map_direct = False
+        orch = RLMOrchestrator(config)
+        with patch.object(RLMOrchestrator, 'run', return_value="r") as run:
+            orch._parallel_map("p", ["x" * 5000], depth=0)
+        # Piece runs as a depth-1 child, which is below max depth -> full loop.
+        assert run.call_args.kwargs.get("depth", run.call_args.args[-1]) == 1
