@@ -109,12 +109,13 @@ class WasmSandbox:
         self._linker = wasmtime.Linker(self._engine)
         self._linker.define_wasi()
 
-    def run(self, code: str, variables: dict[str, str]) -> str:
+    def run(self, code: str, variables: dict[str, Any]) -> str:
         """Run Python code in the Wasm sandbox with injected variables.
 
         Args:
             code: Python source code to execute.
-            variables: Dict of variable names to string values, injected as globals.
+            variables: Dict of variable names to JSON-serializable values
+                (strings, or lists of strings), injected as globals.
 
         Returns:
             The captured stdout output.

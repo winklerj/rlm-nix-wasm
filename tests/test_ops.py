@@ -164,6 +164,18 @@ class TestCombine:
         result = op_combine({"inputs": "arr", "strategy": "sum"}, bindings)
         assert result == "30"
 
+    def test_sum_extracts_integers_from_prose(self):
+        # Sub-LLM replies are rarely bare digits; the first integer counts.
+        bindings = {"arr": json.dumps(["Count: 3", "**4**", "2\n", "none here"])}
+        result = op_combine({"inputs": "arr", "strategy": "sum"}, bindings)
+        assert result == "9"
+
+    def test_sum_over_python_repr_list(self):
+        # eval prints Python reprs, not JSON.
+        bindings = {"arr": "['1', '2', '3']"}
+        result = op_combine({"inputs": "arr", "strategy": "sum"}, bindings)
+        assert result == "6"
+
     def test_vote(self):
         bindings = {"arr": json.dumps(["yes", "no", "yes", "yes"])}
         result = op_combine({"inputs": "arr", "strategy": "vote"}, bindings)

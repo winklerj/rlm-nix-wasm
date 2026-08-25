@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-import json
+import re
 from collections import Counter
+
+from rlm.ops.values import parse_list_value
 
 
 def op_combine(args: dict, bindings: dict[str, str]) -> str:  # type: ignore[type-arg]
@@ -16,12 +18,19 @@ def op_combine(args: dict, bindings: dict[str, str]) -> str:  # type: ignore[typ
         values = [bindings[ref] for ref in inputs_ref]
     else:
         raw = bindings[inputs_ref]
-        values = json.loads(raw) if raw.startswith("[") else [raw]
+        values = parse_list_value(raw)
 
     if strategy == "concat":
         return "\n".join(values)
     elif strategy == "sum":
-        total = sum(int(v.strip()) for v in values if v.strip().isdigit())
+        # Sub-LLM replies are rarely bare digits ("Count: 3", "**3**", "3\n").
+        # Take the first integer in each value; skip values with none rather
+        # than silently summing to 0, which makes the caller retry the plan.
+        total = 0
+        for v in values:
+            m = re.search(r"-?\d+", v)
+            if m:
+                total += int(m.group())
         return str(total)
     elif strategy == "vote":
         counts = Counter(v.strip() for v in values)

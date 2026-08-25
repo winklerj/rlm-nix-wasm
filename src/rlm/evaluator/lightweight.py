@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from typing import TYPE_CHECKING
 
 from rlm.cache.store import CacheStore, make_cache_key
@@ -23,6 +24,24 @@ EXPLORE_OPS = {
     OpType.CHUNK: op_chunk,
     OpType.COMBINE: op_combine,
 }
+
+
+def _decode_list(value: str) -> str | list[str]:
+    """Return a JSON-array string (as emitted by chunk/split/map) as a list.
+
+    Anything that is not a strict JSON array of scalars is passed through as
+    the original string, so plain text bindings are unaffected.
+    """
+    stripped = value.strip()
+    if not stripped.startswith("["):
+        return value
+    try:
+        parsed = json.loads(stripped)
+    except json.JSONDecodeError:
+        return value
+    if isinstance(parsed, list):
+        return [item if isinstance(item, str) else json.dumps(item) for item in parsed]
+    return value
 
 
 class LightweightEvaluator:
@@ -131,9 +150,16 @@ class LightweightEvaluator:
                 )
             self.profile.record_cache_miss()
 
+        # Inject list-valued results (chunk/split/map emit JSON arrays) as real
+        # Python lists: user code iterates and aggregates them, and treating a
+        # JSON string as a list is the most common sandbox failure.
+        sandbox_vars: dict[str, object] = {
+            name: _decode_list(value) for name, value in variables.items()
+        }
+
         # Run in sandbox
         with self.profile.measure("evaluator", "eval"):
-            result_value = self.wasm_sandbox.run(code, variables)
+            result_value = self.wasm_sandbox.run(code, sandbox_vars)
             # Strip trailing newline from stdout capture
             result_value = result_value.rstrip("\n")
 
