@@ -95,6 +95,22 @@ class RLMConfig(BaseModel):
     max_explore_steps: int = 20
     max_commit_cycles: int = 5
     max_recursion_depth: int = 1
+    # Child contexts smaller than this (in chars) are answered with a single
+    # direct LLM call instead of a full explore/commit loop, regardless of
+    # depth. Recursion only pays off when the context is too big to just read.
+    min_recursive_chars: int = 4000
+    # `map` pieces are answered with a single direct LLM call regardless of
+    # size. A map is "apply this prompt to each piece"; a piece large enough
+    # to need its own explore/commit loop is a chunking mistake, and letting
+    # every piece recurse turns one map into hundreds of child loops.
+    map_direct: bool = True
+    # Passed to the server as chat_template_kwargs["reasoning_strength"]
+    # (e.g. "low"/"high") for chat templates that support it; None = omit.
+    reasoning_strength: str | None = None
+    # Hard cap on generated tokens per LLM call (max_tokens). Without it a
+    # model that never emits EOS runs to the server's context limit, and a
+    # client timeout does not stop server-side generation.
+    max_output_tokens: int | None = None
     max_parallel_jobs: int = 4
     temperature: float = 1.0
     max_result_chars: int = 8000

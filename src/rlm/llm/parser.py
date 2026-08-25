@@ -20,6 +20,19 @@ class ParseError(Exception):
     pass
 
 
+def _clean_name(name: object) -> str | None:
+    """Normalize a variable name emitted by the LLM.
+
+    Models sometimes wrap bind/output names in literal quotes or whitespace
+    (e.g. ``output: ' "labels"'``), which then fails the bindings lookup and
+    burns a whole cycle on an avoidable error.
+    """
+    if name is None:
+        return None
+    cleaned = str(name).strip().strip("'\"").strip()
+    return cleaned or None
+
+
 def parse_llm_output(raw: str) -> LLMAction:
     """Parse raw LLM output into a typed action.
 
@@ -33,8 +46,16 @@ def parse_llm_output(raw: str) -> LLMAction:
 
     try:
         data = json.loads(cleaned)
-    except json.JSONDecodeError as e:
-        raise ParseError(f"Invalid JSON from LLM: {e}\nRaw output:\n{raw}")
+    except json.JSONDecodeError:
+        # Fallback: try to extract first JSON object from raw output
+        m = re.search(r'\{.*?\}', raw, re.DOTALL)
+        if m:
+            try:
+                data = json.loads(m.group(0))
+            except json.JSONDecodeError as e2:
+                raise ParseError(f"Invalid JSON from LLM: {e2}\nRaw output:\n{raw}")
+        else:
+            raise ParseError(f"Invalid JSON from LLM: JSONDecodeError\nRaw output:\n{raw}")
 
     if not isinstance(data, dict):
         raise ParseError(f"Expected JSON object, got {type(data).__name__}")
@@ -60,7 +81,7 @@ def parse_llm_output(raw: str) -> LLMAction:
             operation=Operation(
                 op=OpType(op_data["op"]),
                 args=op_data.get("args", {}),
-                bind=op_data.get("bind"),
+                bind=_clean_name(op_data.get("bind")),
             )
         )
     elif mode == "commit":
@@ -74,12 +95,12 @@ def parse_llm_output(raw: str) -> LLMAction:
             Operation(
                 op=OpType(op_data["op"]),
                 args=op_data.get("args", {}),
-                bind=op_data.get("bind"),
+                bind=_clean_name(op_data.get("bind")),
             )
             for op_data in ops_data
         ]
         # Default output to last operation's bind if not specified
-        output = data.get("output")
+        output = _clean_name(data.get("output"))
         if not output and operations:
             output = operations[-1].bind or "result"
         return CommitPlan(operations=operations, output=output or "result")
