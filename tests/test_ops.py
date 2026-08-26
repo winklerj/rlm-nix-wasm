@@ -185,3 +185,25 @@ class TestCombine:
         bindings = {"a": "x", "b": "y"}
         result = op_combine({"inputs": ["a", "b"]}, bindings)
         assert result == "x\ny"
+
+    def test_sum_flattens_list_valued_binding_in_inputs_list(self):
+        # The canonical plan is combine(inputs=["counts"], "sum") where
+        # "counts" is a map result. It must sum every element, not just the
+        # first integer of the serialized list.
+        bindings = {"counts": json.dumps(["12", "Count: 7", "**9**"])}
+        result = op_combine({"inputs": ["counts"], "strategy": "sum"}, bindings)
+        assert result == "28"
+
+    def test_concat_flattens_list_valued_binding_in_inputs_list(self):
+        bindings = {"labels": json.dumps(["a", "b"]), "extra": "c"}
+        result = op_combine({"inputs": ["labels", "extra"], "strategy": "concat"}, bindings)
+        assert result == "a\nb\nc"
+
+    def test_sum_prefers_labeled_then_last_integer(self):
+        bindings = {"arr": json.dumps([
+            "There are 45 lines here; 12 of them are numeric. Answer: 12",
+            "Of the 50 questions, 8 match.",
+            "6",
+        ])}
+        result = op_combine({"inputs": "arr", "strategy": "sum"}, bindings)
+        assert result == "26"

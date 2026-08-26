@@ -63,34 +63,40 @@ Choose the right tool for the task.
 For questions about frequency, counting, or "how many":
 1. Use `chunk(context, N)` to split data into pieces of roughly 40-60 lines each \
 (N = line_count / 50, rounded up). Never one piece per line.
-2. Use `map` with a prompt like "Count occurrences of X in this text. Return ONLY the integer count."
-3. Use `combine(inputs, "sum")` to total the counts.
-4. For "which is more/less common" questions: count each category separately, then compare.
+2. Use `map` with a prompt that classifies EVERY line in the piece and returns exactly one \
+line per item in the form "<item number>: <label>", using the label names from the question. \
+Sub-LLMs are accurate at labeling items but unreliable at counting them, so never ask a \
+sub-LLM for a count — label, then count the labels yourself.
+3. Tally with a single `eval` over the map output (it arrives as a list of strings): \
+`collections.Counter` of the label on each output line. Only fall back to \
+`combine(inputs, "sum")` when each map result is a bare integer.
+4. For "is X more/less common than, or the same frequency as Y" questions: run ONE map that \
+labels every item, tally X and Y from that same output, then compare. Answer \
+"same frequency as" when the two tallies are equal or within 3% of each other — the data \
+is constructed so that some label pairs have exactly equal counts.
 
-For classification tasks (e.g., "what is the most common label"):
-1. Chunk the context into pieces of 40-60 items, then `map` with a prompt that labels \
-EVERY item in the piece and returns one line per item ("<item id or text>: <label>").
-2. Tally the labels with a single `eval` (e.g. `collections.Counter` over the map output), \
-or `combine` with a custom prompt to aggregate across chunks.
+For classification tasks (e.g., "what is the most common label"), use the same pattern: \
+chunk into pieces of 40-60 items, `map` with a labeling prompt that returns one line per \
+item, then tally in `eval`.
 
 BATCH YOUR SUB-CALLS: a sub-LLM call handling 50 items costs barely more than one handling 5. \
-Classify or count 40-60 items per call. Do NOT issue one `rlm_call` or one map piece per line — \
+Classify 40-60 items per call. Do NOT issue one `rlm_call` or one map piece per line — \
 that is 10-20x slower for the same result. Do NOT repeat a `map` you have already run; reuse \
 its bound result.
 
-Key: sub-LLM calls should return STRUCTURED, PARSEABLE results (just numbers or short labels), not prose.
+Key: sub-LLM calls should return STRUCTURED, PARSEABLE results (one short label per line), not prose.
 
 ## Example: Counting pattern (COMMIT mode)
 
-Question: "How many lines contain the word 'error'?"
+Question: "How many questions ask about a location?"
 {{
   "mode": "commit",
   "operations": [
-    {{"op": "chunk", "args": {{"input": "context", "n": 5}}, "bind": "chunks"}},
-    {{"op": "map", "args": {{"prompt": "Count lines containing 'error'. Return ONLY the integer.", "input": "chunks"}}, "bind": "counts"}},
-    {{"op": "combine", "args": {{"inputs": ["counts"], "strategy": "sum"}}, "bind": "total"}}
+    {{"op": "chunk", "args": {{"input": "context", "n": 20}}, "bind": "chunks"}},
+    {{"op": "map", "args": {{"prompt": "Label EVERY line below as 'location' or 'other'. Output exactly one line per input line, in order, formatted '<line number>: <label>'. No other text.", "input": "chunks"}}, "bind": "labels"}},
+    {{"op": "eval", "args": {{"code": "import re\\nfrom collections import Counter\\nc = Counter(m.group(1).strip().lower() for piece in labels for m in re.finditer(r'^\\\\s*\\\\d+\\\\s*[:.)-]\\\\s*(.+)$', piece, re.M))\\nresult = dict(c)", "inputs": ["labels"]}}, "bind": "tally"}}
   ],
-  "output": "total"
+  "output": "tally"
 }}
 
 ## Rules

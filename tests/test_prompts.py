@@ -46,3 +46,31 @@ def test_counting_guidance_batches_40_to_60_lines_per_call() -> None:
     assert "40-60 lines" in SYSTEM_PROMPT
     assert "line_count / 50" in SYSTEM_PROMPT
     assert "10-20 lines" not in SYSTEM_PROMPT
+
+
+def test_counting_guidance_labels_items_and_tallies_in_eval() -> None:
+    from rlm.llm.prompts import SYSTEM_PROMPT
+    # Sub-LLMs label reliably but count unreliably: count via per-item labels.
+    assert "never ask a \\\nsub-LLM for a count" in SYSTEM_PROMPT or "never ask a sub-LLM for a count" in SYSTEM_PROMPT
+    assert "<item number>: <label>" in SYSTEM_PROMPT
+    assert "Counter" in SYSTEM_PROMPT
+    # Comparison questions: one map for both labels, explicit tie rule.
+    assert "same frequency as" in SYSTEM_PROMPT
+    assert "within 3%" in SYSTEM_PROMPT
+
+
+def test_counting_example_is_valid_json_and_tallies() -> None:
+    import json
+    import re
+    from collections import Counter
+
+    from rlm.llm.prompts import SYSTEM_PROMPT
+    rendered = SYSTEM_PROMPT.format(eval_ops="", eval_approach="", query="q")
+    example = rendered[rendered.index("## Example: Counting pattern"):rendered.index("## Rules")]
+    plan = json.loads(example[example.index("{"):].strip())
+    ops = {op["op"]: op for op in plan["operations"]}
+    code = ops["eval"]["args"]["code"]
+    labels = ["1: location\n2: other\n3: Location", "1: other\n2: location"]
+    ns: dict[str, object] = {"labels": labels, "re": re, "Counter": Counter}
+    exec(code, ns)  # noqa: S102 — our own example
+    assert ns["result"] == {"location": 3, "other": 2}
