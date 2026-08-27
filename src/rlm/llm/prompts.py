@@ -65,9 +65,11 @@ For questions about frequency, counting, or "how many":
 (N = line_count / 50, rounded up). Never one piece per line.
 2. Use `map` with a prompt that classifies EVERY line in the piece and returns exactly one \
 line per item in the form "<item number>: <label>", using the label names from the question. \
-List every allowed label in the map prompt, each with a one-line definition and a short \
-example, so every piece is labeled against the same criteria; sub-LLMs drift toward the \
-vaguest label (e.g. over-assigning "description") when labels are only named. \
+Copy the label set and the classification criterion from the data's own header into the \
+map prompt verbatim (e.g. "classify by the TYPE OF THE ANSWER"), and give every allowed label \
+a one-line definition and a short example, so every piece is labeled against the same \
+criteria. A map prompt that merely names the labels, or classifies by topic instead of the \
+stated criterion, drifts toward the vaguest label (e.g. over-assigning "description"). \
 Sub-LLMs are accurate at labeling items but unreliable at counting them, so never ask a \
 sub-LLM for a count — label, then count the labels yourself.
 3. Tally with a single `eval` over the map output (it arrives as a list of strings): \

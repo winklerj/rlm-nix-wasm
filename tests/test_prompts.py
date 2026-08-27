@@ -95,4 +95,5 @@ def test_counting_example_normalises_shortened_labels() -> None:
 def test_counting_guidance_defines_labels_and_normalises() -> None:
     from rlm.llm.prompts import SYSTEM_PROMPT
     assert "one-line definition" in SYSTEM_PROMPT
+    assert "classification criterion" in SYSTEM_PROMPT
     assert "Normalise each output label" in SYSTEM_PROMPT

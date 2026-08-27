@@ -353,3 +353,16 @@ class TestMapFanoutGuardrail:
         with patch.object(RLMOrchestrator, '_direct_call', return_value="leaf"):
             out, _ = orch._execute_commit_plan(plan, bindings, depth=0)
         assert json.loads(out) == ["leaf"] * 4
+
+    def test_verbose_logs_full_map_prompt(self, config):
+        config.verbose = True
+        orch = RLMOrchestrator(config)
+        long_prompt = "Classify by the type of the answer: " + "x" * 200
+        plan = CommitPlan(operations=[
+            Operation(op=OpType.MAP, args={"prompt": long_prompt, "input": "chunks"}, bind="out"),
+        ], output="out")
+        with patch.object(RLMOrchestrator, '_direct_call', return_value="leaf"):
+            with patch.object(orch.console, 'print') as printed:
+                orch._execute_commit_plan(plan, {"chunks": json.dumps(["a", "b"])}, depth=0)
+        logged = "\n".join(str(c.args[0]) for c in printed.call_args_list)
+        assert long_prompt in logged

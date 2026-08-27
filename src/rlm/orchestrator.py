@@ -10,6 +10,7 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from rich.console import Console
+from rich.markup import escape
 
 from rlm.cache.store import CacheStore
 from rlm.evaluator.lightweight import LightweightEvaluator
@@ -381,6 +382,13 @@ class RLMOrchestrator:
                 input_ref = op.args["input"]
                 raw = local_bindings[input_ref]
                 items: list[str] = parse_list_value(raw)
+                if self.config.verbose:
+                    # The prompt decides the quality of every leaf label; the
+                    # 40-char op summary is useless for diagnosing a bad map.
+                    self.console.print(
+                        f"[dim]  map prompt ({len(items)} pieces): "
+                        f"{escape(prompt[:1000])}[/dim]"
+                    )
                 if len(items) > self.config.max_map_items:
                     raise ValueError(
                         f"map over {len(items)} pieces refused (limit "
