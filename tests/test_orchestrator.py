@@ -7,7 +7,7 @@ import pytest
 from pytest import approx
 
 from rlm.orchestrator import RLMOrchestrator
-from rlm.types import RLMConfig
+from rlm.types import CommitPlan, Operation, OpType, RLMConfig
 
 
 @pytest.fixture
@@ -328,3 +328,28 @@ class TestMapDirect:
             orch._parallel_map("p", ["x" * 5000], depth=0)
         # Piece runs as a depth-1 child, which is below max depth -> full loop.
         assert run.call_args.kwargs.get("depth", run.call_args.args[-1]) == 1
+
+
+class TestMapFanoutGuardrail:
+    def test_map_over_too_many_pieces_is_refused_before_any_call(self, config):
+        config.max_map_items = 4
+        orch = RLMOrchestrator(config)
+        plan = CommitPlan(operations=[
+            Operation(op=OpType.MAP, args={"prompt": "label", "input": "chunks"}, bind="out"),
+        ], output="out")
+        bindings = {"chunks": json.dumps([f"line {i}" for i in range(5)])}
+        with patch.object(RLMOrchestrator, '_direct_call', return_value="leaf") as direct:
+            with pytest.raises(RuntimeError, match="map over 5 pieces refused"):
+                orch._execute_commit_plan(plan, bindings, depth=0)
+        assert direct.call_count == 0
+
+    def test_map_within_limit_runs(self, config):
+        config.max_map_items = 4
+        orch = RLMOrchestrator(config)
+        plan = CommitPlan(operations=[
+            Operation(op=OpType.MAP, args={"prompt": "label", "input": "chunks"}, bind="out"),
+        ], output="out")
+        bindings = {"chunks": json.dumps(["a", "b", "c", "d"])}
+        with patch.object(RLMOrchestrator, '_direct_call', return_value="leaf"):
+            out, _ = orch._execute_commit_plan(plan, bindings, depth=0)
+        assert json.loads(out) == ["leaf"] * 4

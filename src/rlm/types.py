@@ -112,6 +112,10 @@ class RLMConfig(BaseModel):
     # client timeout does not stop server-side generation.
     max_output_tokens: int | None = None
     max_parallel_jobs: int = 4
+    # Refuse a `map` over more pieces than this. A runaway plan (one piece
+    # per line over thousands of lines) is the single biggest source of
+    # multi-hour tasks, and the answer it produces is no better.
+    max_map_items: int = 512
     temperature: float = 1.0
     max_result_chars: int = 8000
     cache_dir: Path = Path.home() / ".cache" / "rlm-nix-wasm"

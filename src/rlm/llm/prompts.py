@@ -65,10 +65,15 @@ For questions about frequency, counting, or "how many":
 (N = line_count / 50, rounded up). Never one piece per line.
 2. Use `map` with a prompt that classifies EVERY line in the piece and returns exactly one \
 line per item in the form "<item number>: <label>", using the label names from the question. \
+List every allowed label in the map prompt, each with a one-line definition and a short \
+example, so every piece is labeled against the same criteria; sub-LLMs drift toward the \
+vaguest label (e.g. over-assigning "description") when labels are only named. \
 Sub-LLMs are accurate at labeling items but unreliable at counting them, so never ask a \
 sub-LLM for a count — label, then count the labels yourself.
 3. Tally with a single `eval` over the map output (it arrives as a list of strings): \
-`collections.Counter` of the label on each output line. Only fall back to \
+`collections.Counter` of the label on each output line. Normalise each output label to the \
+allowed label it is a prefix of (sub-LLMs shorten "description and abstract concept" to \
+"description") before counting, as in the example below. Only fall back to \
 `combine(inputs, "sum")` when each map result is a bare integer.
 4. For "is X more/less common than, or the same frequency as Y" questions: run ONE map that \
 labels every item, tally X and Y from that same output, then compare. Answer \
@@ -94,7 +99,7 @@ Question: "How many questions ask about a location?"
   "operations": [
     {{"op": "chunk", "args": {{"input": "context", "n": 20}}, "bind": "chunks"}},
     {{"op": "map", "args": {{"prompt": "Label EVERY line below as 'location' or 'other'. Output exactly one line per input line, in order, formatted '<line number>: <label>'. No other text.", "input": "chunks"}}, "bind": "labels"}},
-    {{"op": "eval", "args": {{"code": "import re\\nfrom collections import Counter\\nc = Counter(m.group(1).strip().lower() for piece in labels for m in re.finditer(r'^\\\\s*\\\\d+\\\\s*[:.)-]\\\\s*(.+)$', piece, re.M))\\nresult = dict(c)", "inputs": ["labels"]}}, "bind": "tally"}}
+    {{"op": "eval", "args": {{"code": "import re\\nfrom collections import Counter\\nLABELS = ['location', 'other']\\ndef norm(s):\\n    s = s.strip().lower().strip('*`.')\\n    return next((L for L in LABELS if s and (L.startswith(s) or s.startswith(L))), s)\\nc = Counter(norm(m.group(1)) for piece in labels for m in re.finditer(r'^\\\\s*\\\\d+\\\\s*[:.)-]\\\\s*(.+)$', piece, re.M))\\nresult = dict(c)", "inputs": ["labels"]}}, "bind": "tally"}}
   ],
   "output": "tally"
 }}

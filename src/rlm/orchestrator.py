@@ -381,6 +381,13 @@ class RLMOrchestrator:
                 input_ref = op.args["input"]
                 raw = local_bindings[input_ref]
                 items: list[str] = parse_list_value(raw)
+                if len(items) > self.config.max_map_items:
+                    raise ValueError(
+                        f"map over {len(items)} pieces refused (limit "
+                        f"{self.config.max_map_items}). Sub-LLM calls are expensive; "
+                        f"chunk into pieces of 40-60 lines "
+                        f"(n = line_count / 50) so each call labels many items."
+                    )
                 before_count = len(self.child_orchestrators)
                 result_value = self._parallel_map(prompt, items, depth)
                 if self.trace_collector.enabled:

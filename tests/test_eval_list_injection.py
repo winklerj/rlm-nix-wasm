@@ -38,3 +38,31 @@ def test_eval_receives_lists_for_json_array_bindings() -> None:
     assert sandbox.seen["chunks"] == ["line1", "line2"]
     assert sandbox.seen["counts"] == ["3", "4"]
     assert sandbox.seen["context"] == "line1\nline2"
+
+
+def test_eval_injects_bindings_referenced_in_code_but_missing_from_inputs() -> None:
+    sandbox = _StubSandbox()
+    evaluator = LightweightEvaluator(cache=None, wasm_sandbox=sandbox)  # type: ignore[arg-type]
+    bindings = {
+        "context": "a\nb",
+        "labels": json.dumps(["1: x"]),
+        "tally": "{}",
+        "unused": "zzz",
+    }
+    op = Operation(op=OpType.EVAL, args={
+        "code": "lines = context.splitlines()\nresult = len(labels)",
+        "inputs": ["labels"],
+    })
+    evaluator.execute(op, bindings)
+    assert sandbox.seen["context"] == "a\nb"
+    assert sandbox.seen["labels"] == ["1: x"]
+    assert "unused" not in sandbox.seen
+    assert "tally" not in sandbox.seen
+
+
+def test_eval_reference_scan_ignores_attributes_and_substrings() -> None:
+    from rlm.evaluator.lightweight import _code_references
+    assert _code_references("x = context.split()", "context")
+    assert not _code_references("x = obj.context", "context")
+    assert not _code_references("x = contexts", "context")
+    assert not _code_references("x = 1", "not an identifier")

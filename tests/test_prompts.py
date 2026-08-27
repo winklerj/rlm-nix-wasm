@@ -74,3 +74,25 @@ def test_counting_example_is_valid_json_and_tallies() -> None:
     ns: dict[str, object] = {"labels": labels, "re": re, "Counter": Counter}
     exec(code, ns)  # noqa: S102 — our own example
     assert ns["result"] == {"location": 3, "other": 2}
+
+
+def test_counting_example_normalises_shortened_labels() -> None:
+    import json
+    import re
+    from collections import Counter
+
+    from rlm.llm.prompts import SYSTEM_PROMPT
+    rendered = SYSTEM_PROMPT.format(eval_ops="", eval_approach="", query="q")
+    example = rendered[rendered.index("## Example: Counting pattern"):rendered.index("## Rules")]
+    plan = json.loads(example[example.index("{"):].strip())
+    code = {op["op"]: op for op in plan["operations"]}["eval"]["args"]["code"]
+    labels = ["1: loc\n2: **other**\n3: Location.", "1: other\n2: skip"]
+    ns: dict[str, object] = {"labels": labels, "re": re, "Counter": Counter}
+    exec(code, ns)  # noqa: S102 — our own example
+    assert ns["result"] == {"location": 2, "other": 2, "skip": 1}
+
+
+def test_counting_guidance_defines_labels_and_normalises() -> None:
+    from rlm.llm.prompts import SYSTEM_PROMPT
+    assert "one-line definition" in SYSTEM_PROMPT
+    assert "Normalise each output label" in SYSTEM_PROMPT

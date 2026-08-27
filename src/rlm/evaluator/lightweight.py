@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from typing import TYPE_CHECKING
 
 from rlm.cache.store import CacheStore, make_cache_key
@@ -42,6 +43,11 @@ def _decode_list(value: str) -> str | list[str]:
     if isinstance(parsed, list):
         return [item if isinstance(item, str) else json.dumps(item) for item in parsed]
     return value
+
+
+def _code_references(code: str, name: str) -> bool:
+    """True if `name` appears in `code` as a whole identifier."""
+    return name.isidentifier() and re.search(rf"(?<![\w.]){re.escape(name)}\b", code) is not None
 
 
 class LightweightEvaluator:
@@ -118,9 +124,15 @@ class LightweightEvaluator:
         code: str = op.args["code"]
         input_names: list[str] | None = op.args.get("inputs")
 
-        # Resolve variables: only those listed in inputs, or all bindings
+        # Resolve variables: those listed in inputs, plus any other binding the
+        # code references by name (models routinely forget to list `context`
+        # or a bound result in `inputs`, and a NameError costs a whole retry
+        # cycle). Without an inputs list, every binding is available.
         if input_names is not None:
             variables = {name: bindings[name] for name in input_names if name in bindings}
+            for name, value in bindings.items():
+                if name not in variables and _code_references(code, name):
+                    variables[name] = value
         else:
             variables = dict(bindings)
 

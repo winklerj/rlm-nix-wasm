@@ -5,10 +5,8 @@ import threading
 from pathlib import Path
 
 from rlm.trace import (
-    CommitCycleTrace,
     CommitOperationTrace,
     ExecutionTrace,
-    ExploreStepTrace,
     FinalAnswerTrace,
     LLMCallTrace,
     OrchestratorTrace,
