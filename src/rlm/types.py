@@ -112,10 +112,15 @@ class RLMConfig(BaseModel):
     # client timeout does not stop server-side generation.
     max_output_tokens: int | None = None
     max_parallel_jobs: int = 4
-    # Refuse a `map` over more pieces than this. A runaway plan (one piece
-    # per line over thousands of lines) is the single biggest source of
-    # multi-hour tasks, and the answer it produces is no better.
-    max_map_items: int = 512
+    # Fan-out guardrails for `map`. A runaway plan (one piece per line over
+    # thousands of lines) is the single biggest source of multi-hour tasks,
+    # and the answer it produces is no better. Refuse a map whose pieces
+    # average fewer than `min_map_piece_lines` lines once it has more than
+    # 64 pieces (small maps over single items are legitimate), and any map
+    # over more than `max_map_items` pieces. n = lines / 50 at 4M tokens is
+    # ~2,000 pieces, so the absolute cap must stay well above that.
+    max_map_items: int = 4096
+    min_map_piece_lines: int = 5
     temperature: float = 1.0
     max_result_chars: int = 8000
     cache_dir: Path = Path.home() / ".cache" / "rlm-nix-wasm"

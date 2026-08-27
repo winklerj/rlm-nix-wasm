@@ -331,28 +331,43 @@ class TestMapDirect:
 
 
 class TestMapFanoutGuardrail:
-    def test_map_over_too_many_pieces_is_refused_before_any_call(self, config):
-        config.max_map_items = 4
-        orch = RLMOrchestrator(config)
-        plan = CommitPlan(operations=[
+    @staticmethod
+    def _plan():
+        return CommitPlan(operations=[
             Operation(op=OpType.MAP, args={"prompt": "label", "input": "chunks"}, bind="out"),
         ], output="out")
-        bindings = {"chunks": json.dumps([f"line {i}" for i in range(5)])}
+
+    def test_one_line_per_piece_over_many_pieces_is_refused_before_any_call(self, config):
+        orch = RLMOrchestrator(config)
+        bindings = {"chunks": json.dumps([f"line {i}" for i in range(65)])}
         with patch.object(RLMOrchestrator, '_direct_call', return_value="leaf") as direct:
-            with pytest.raises(RuntimeError, match="map over 5 pieces refused"):
-                orch._execute_commit_plan(plan, bindings, depth=0)
+            with pytest.raises(RuntimeError, match="map over 65 pieces averaging 1.0 lines"):
+                orch._execute_commit_plan(self._plan(), bindings, depth=0)
         assert direct.call_count == 0
 
-    def test_map_within_limit_runs(self, config):
-        config.max_map_items = 4
+    def test_absolute_piece_cap_is_enforced(self, config):
+        config.max_map_items = 100
         orch = RLMOrchestrator(config)
-        plan = CommitPlan(operations=[
-            Operation(op=OpType.MAP, args={"prompt": "label", "input": "chunks"}, bind="out"),
-        ], output="out")
-        bindings = {"chunks": json.dumps(["a", "b", "c", "d"])}
+        pieces = ["\n".join(f"l{j}" for j in range(50))] * 101
+        with patch.object(RLMOrchestrator, '_direct_call', return_value="leaf") as direct:
+            with pytest.raises(RuntimeError, match="map over 101 pieces"):
+                orch._execute_commit_plan(self._plan(), {"chunks": json.dumps(pieces)}, depth=0)
+        assert direct.call_count == 0
+
+    def test_small_map_over_single_lines_is_allowed(self, config):
+        orch = RLMOrchestrator(config)
+        bindings = {"chunks": json.dumps([f"line {i}" for i in range(15)])}
         with patch.object(RLMOrchestrator, '_direct_call', return_value="leaf"):
-            out, _ = orch._execute_commit_plan(plan, bindings, depth=0)
-        assert json.loads(out) == ["leaf"] * 4
+            out, _ = orch._execute_commit_plan(self._plan(), bindings, depth=0)
+        assert json.loads(out) == ["leaf"] * 15
+
+    def test_sweep_scale_chunking_is_allowed(self, config):
+        # 4M tokens ~ 100K lines at n = lines / 50 -> ~2,000 pieces of 50 lines.
+        orch = RLMOrchestrator(config)
+        pieces = ["\n".join(f"l{j}" for j in range(50))] * 2048
+        with patch.object(RLMOrchestrator, '_direct_call', return_value="leaf") as direct:
+            orch._execute_commit_plan(self._plan(), {"chunks": json.dumps(pieces)}, depth=0)
+        assert direct.call_count == 2048
 
     def test_verbose_logs_full_map_prompt(self, config):
         config.verbose = True

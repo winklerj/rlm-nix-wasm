@@ -389,12 +389,18 @@ class RLMOrchestrator:
                         f"[dim]  map prompt ({len(items)} pieces): "
                         f"{escape(prompt[:1000])}[/dim]"
                     )
-                if len(items) > self.config.max_map_items:
+                mean_lines = (
+                    sum(piece.count("\n") + 1 for piece in items) / len(items)
+                    if items else 0.0
+                )
+                if len(items) > self.config.max_map_items or (
+                    len(items) > 64 and mean_lines < self.config.min_map_piece_lines
+                ):
                     raise ValueError(
-                        f"map over {len(items)} pieces refused (limit "
-                        f"{self.config.max_map_items}). Sub-LLM calls are expensive; "
-                        f"chunk into pieces of 40-60 lines "
-                        f"(n = line_count / 50) so each call labels many items."
+                        f"map over {len(items)} pieces averaging {mean_lines:.1f} "
+                        f"lines each refused. Sub-LLM calls are expensive and one "
+                        f"call labels 40-60 lines as accurately as one; chunk with "
+                        f"n = line_count / 50 and map over that."
                     )
                 before_count = len(self.child_orchestrators)
                 result_value = self._parallel_map(prompt, items, depth)
