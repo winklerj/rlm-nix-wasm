@@ -118,3 +118,39 @@ class TestLoadAllResults:
         output.write_text("")
         runner = EvalRunner(RLMConfig(), output)
         assert runner._load_all_results() == []
+
+
+class TestTraceOutput:
+    def _task(self):
+        from rlm.eval.datasets import EvalTask
+        return EvalTask(id=7, context_window_id=1, context_text="a\nb", question="q?",
+                        answer="Answer: 1", answer_type="NUMERIC", task_group="counting",
+                        task="t", dataset="trec_coarse", context_len=1024)
+
+    def test_trace_written_per_task_when_enabled(self, tmp_path: Path):
+        from unittest.mock import patch
+
+        from rlm.trace import ExecutionTrace
+        runner = EvalRunner(RLMConfig(), tmp_path / "out.jsonl", trace_dir=tmp_path / "traces")
+        with patch("rlm.orchestrator.RLMOrchestrator.run", return_value="Answer: 1"):
+            result = runner.run_task(self._task())
+        assert result.error is None
+        trace_file = tmp_path / "traces" / "7.json"
+        assert trace_file.exists()
+        trace = ExecutionTrace.model_validate_json(trace_file.read_text())
+        assert trace.root.depth == 0
+
+    def test_trace_written_even_when_task_errors(self, tmp_path: Path):
+        from unittest.mock import patch
+        runner = EvalRunner(RLMConfig(), tmp_path / "out.jsonl", trace_dir=tmp_path / "traces")
+        with patch("rlm.orchestrator.RLMOrchestrator.run", side_effect=RuntimeError("boom")):
+            result = runner.run_task(self._task())
+        assert result.error == "boom"
+        assert (tmp_path / "traces" / "7.json").exists()
+
+    def test_no_trace_dir_writes_nothing(self, tmp_path: Path):
+        from unittest.mock import patch
+        runner = EvalRunner(RLMConfig(), tmp_path / "out.jsonl")
+        with patch("rlm.orchestrator.RLMOrchestrator.run", return_value="Answer: 1"):
+            runner.run_task(self._task())
+        assert not list(tmp_path.glob("**/*.json"))

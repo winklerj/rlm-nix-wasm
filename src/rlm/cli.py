@@ -216,7 +216,9 @@ def eval_download(benchmark: str) -> None:
               help="Only run first N tasks (for testing).")
 @click.option("--verbose", "-v", is_flag=True, default=False, help="Verbose output.")
 @click.option("--trace", is_flag=True, default=False,
-              help="Enable execution tracing.")
+              help="Write a full execution trace per task to --trace-dir.")
+@click.option("--trace-dir", default=None, type=click.Path(),
+              help="Directory for per-task trace JSON (default: <output stem>-traces/).")
 def eval_run(
     benchmark: str,
     dataset_name: str,
@@ -233,6 +235,7 @@ def eval_run(
     limit: int | None,
     verbose: bool,
     trace: bool,
+    trace_dir: str | None,
 ) -> None:
     """Run benchmark evaluation."""
     if benchmark != "oolong-synth":
@@ -277,7 +280,14 @@ def eval_run(
 
     console.print(f"Found {len(tasks)} tasks")
 
-    runner = EvalRunner(config, output_path=Path(output))
+    trace_path: Path | None = None
+    if trace or trace_dir:
+        trace_path = Path(trace_dir) if trace_dir else Path(output).with_name(
+            Path(output).stem + "-traces"
+        )
+        console.print(f"[dim]Traces: {trace_path}/<task id>.json[/dim]")
+
+    runner = EvalRunner(config, output_path=Path(output), trace_dir=trace_path)
     results = runner.run_all(tasks, resume=resume, limit=limit)
 
     if results:

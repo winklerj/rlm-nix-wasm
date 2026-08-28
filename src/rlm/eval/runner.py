@@ -35,12 +35,18 @@ class EvalResult(BaseModel):
 class EvalRunner:
     """Runs benchmark tasks with resumable JSONL checkpointing."""
 
-    def __init__(self, config: RLMConfig, output_path: Path) -> None:
+    def __init__(
+        self, config: RLMConfig, output_path: Path, trace_dir: Path | None = None
+    ) -> None:
         # Enable benchmark-friendly eval prompt when Wasm sandbox is available
         if config.wasm_python_path and not config.benchmark_eval_prompt:
             config = config.model_copy(update={"benchmark_eval_prompt": True})
         self.config = config
         self.output_path = output_path
+        # When set, every task's full execution trace (root explore/commit
+        # transcript plus each map leaf's input and output) is written to
+        # {trace_dir}/{task.id}.json — the raw material for diagnosing a run.
+        self.trace_dir = trace_dir
         self.console = Console(stderr=True)
 
     def load_completed(self) -> set[int]:
@@ -65,7 +71,7 @@ class EvalRunner:
         from rlm.orchestrator import RLMOrchestrator
         from rlm.trace import TraceCollector
 
-        trace_collector = TraceCollector(enabled=False)
+        trace_collector = TraceCollector(enabled=self.trace_dir is not None)
         orchestrator = RLMOrchestrator(self.config, trace_collector=trace_collector)
 
         start = time.monotonic()
@@ -80,6 +86,15 @@ class EvalRunner:
             error = str(e)
 
         elapsed = time.monotonic() - start
+        if self.trace_dir is not None:
+            # Written before scoring so a failed task still leaves its trace.
+            try:
+                self.trace_dir.mkdir(parents=True, exist_ok=True)
+                TraceCollector.write_trace(
+                    orchestrator.get_trace(), self.trace_dir / f"{task.id}.json"
+                )
+            except Exception as e:
+                self.console.print(f"[yellow]  trace not written: {e}[/yellow]")
         input_tokens, output_tokens = orchestrator.get_total_token_usage()
         cost = orchestrator.get_total_cost(estimate_cost)
 
