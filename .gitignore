@@ -8,3 +8,5 @@ build/
 .wasm/
 traces/
 .hypothesis/
+results/*-traces/
+results/poisoned-backup-*/
