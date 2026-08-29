@@ -5,7 +5,7 @@ set -eu
 cd /var/lib/microvms/rlm-secure
 export PATH=/nix/var/nix/profiles/default/bin:/run/current-system/sw/bin:$HOME/.nix-profile/bin:$HOME/.local/bin:$PATH
 export OPENAI_API_KEY=$(grep '^OPENAI_API_KEY=' .env | cut -d= -f2-)
-export OPENAI_BASE_URL=http://192.168.1.247:11434/v1
+export OPENAI_BASE_URL=http://star-destroyer.local:11434/v1
 export RLM_MAX_PARALLEL_JOBS=3
 export RLM_REASONING_STRENGTH=low
 export RLM_TEMPERATURE=0.0
