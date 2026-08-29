@@ -49,8 +49,35 @@ class EvalRunner:
         self.trace_dir = trace_dir
         self.console = Console(stderr=True)
 
+    def _drop_errored_rows(self) -> None:
+        """Rewrite the JSONL without errored rows so retries don't duplicate ids."""
+        if not self.output_path.exists():
+            return
+        with open(self.output_path) as f:
+            lines = [line for line in f if line.strip()]
+        kept = []
+        for line in lines:
+            try:
+                if json.loads(line).get("error"):
+                    continue
+            except json.JSONDecodeError:
+                pass
+            kept.append(line)
+        if len(kept) != len(lines):
+            self.console.print(
+                f"[yellow]Dropping {len(lines) - len(kept)} errored "
+                f"result(s) from {self.output_path} for retry[/yellow]"
+            )
+            with open(self.output_path, "w") as f:
+                f.writelines(kept)
+
     def load_completed(self) -> set[int]:
-        """Read existing JSONL and return set of completed task IDs."""
+        """Read existing JSONL and return set of successfully completed task IDs.
+
+        Rows with an error are not counted as completed: an infrastructure
+        failure (server restart, network drop) writes a scored-0 error row,
+        and --resume must retry those tasks rather than skip them.
+        """
         completed: set[int] = set()
         if not self.output_path.exists():
             return completed
@@ -61,7 +88,8 @@ class EvalRunner:
                     continue
                 try:
                     obj = json.loads(line)
-                    completed.add(obj["id"])
+                    if not obj.get("error"):
+                        completed.add(obj["id"])
                 except (json.JSONDecodeError, KeyError):
                     continue
         return completed
@@ -135,6 +163,8 @@ class EvalRunner:
             List of all EvalResult objects (including previously completed if resuming).
         """
         completed_ids = self.load_completed() if resume else set()
+        if resume:
+            self._drop_errored_rows()
         if completed_ids:
             self.console.print(f"[dim]Resuming: {len(completed_ids)} tasks already completed[/dim]")
 

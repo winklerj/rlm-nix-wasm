@@ -101,6 +101,31 @@ class TestCheckpointLoading:
         assert runner.load_completed() == {7}
 
 
+class TestResumeRetriesErroredTasks:
+    def _write(self, path: Path, rows: list[dict]) -> None:
+        import json as j
+        path.write_text("".join(j.dumps(r) + "\n" for r in rows))
+
+    @staticmethod
+    def _row(task_id: int, error: str | None = None) -> dict:
+        return {"id": task_id, "score": 0.0 if error else 1.0, "error": error,
+                "predicted": "", "gold": "", "answer_type": "LABEL"}
+
+    def test_errored_rows_are_not_completed(self, tmp_path: Path):
+        out = tmp_path / "r.jsonl"
+        self._write(out, [self._row(1), self._row(2, error="connection reset"), self._row(3)])
+        runner = EvalRunner(RLMConfig(), out)
+        assert runner.load_completed() == {1, 3}
+
+    def test_drop_errored_rows_rewrites_file(self, tmp_path: Path):
+        out = tmp_path / "r.jsonl"
+        self._write(out, [self._row(1), self._row(2, error="boom")])
+        runner = EvalRunner(RLMConfig(), out)
+        runner._drop_errored_rows()
+        rows = [json.loads(line) for line in out.read_text().splitlines()]
+        assert [r["id"] for r in rows] == [1]
+
+
 class TestLoadAllResults:
     def test_load_all(self, tmp_path: Path):
         output = tmp_path / "results.jsonl"
