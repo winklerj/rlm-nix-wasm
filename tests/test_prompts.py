@@ -73,7 +73,7 @@ def test_counting_example_is_valid_json_and_tallies() -> None:
     labels = ["1: location\n2: other\n3: Location", "1: other\n2: location"]
     ns: dict[str, object] = {"labels": labels, "re": re, "Counter": Counter}
     exec(code, ns)  # noqa: S102 — our own example
-    assert ns["result"] == {"location": 3, "other": 2}
+    assert ns["result"] == {"location": 3, "all": {"location": 3, "other": 2}}
 
 
 def test_counting_example_normalises_shortened_labels() -> None:
@@ -89,7 +89,7 @@ def test_counting_example_normalises_shortened_labels() -> None:
     labels = ["1: loc\n2: **other**\n3: Location.", "1: other\n2: skip"]
     ns: dict[str, object] = {"labels": labels, "re": re, "Counter": Counter}
     exec(code, ns)  # noqa: S102 — our own example
-    assert ns["result"] == {"location": 2, "other": 2, "skip": 1}
+    assert ns["result"] == {"location": 2, "all": {"location": 2, "other": 2, "skip": 1}}
 
 
 def test_counting_guidance_defines_labels_and_normalises() -> None:
@@ -97,3 +97,22 @@ def test_counting_guidance_defines_labels_and_normalises() -> None:
     assert "one-line definition" in SYSTEM_PROMPT
     assert "classification criterion" in SYSTEM_PROMPT
     assert "Normalise each output label" in SYSTEM_PROMPT
+
+
+def test_counting_example_map_prompt_uses_full_label_set_with_definitions() -> None:
+    # A binary "X or other" map prompt collapses on this model (recall ~0.02) and
+    # roots copy the example over the prose, so the example must show the full
+    # label set, the header's criterion and a definition + example per label.
+    import json
+
+    from rlm.llm.prompts import SYSTEM_PROMPT
+    rendered = SYSTEM_PROMPT.format(eval_ops="", eval_approach="", query="q")
+    example = rendered[rendered.index("## Example: Counting pattern"):rendered.index("## Rules")]
+    plan = json.loads(example[example.index("{"):].strip())
+    prompt = {op["op"]: op for op in plan["operations"]}["map"]["args"]["prompt"]
+    assert "TYPE OF ITS ANSWER" in prompt
+    for label in ("location", "human being", "numeric value", "entity",
+                  "abbreviation", "description and abstract concept"):
+        assert f"'{label}' =" in prompt
+    assert prompt.count("e.g.") >= 6
+    assert "'location' or 'other'" not in prompt

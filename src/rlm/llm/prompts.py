@@ -95,13 +95,37 @@ Key: sub-LLM calls should return STRUCTURED, PARSEABLE results (one short label 
 
 ## Example: Counting pattern (COMMIT mode)
 
-Question: "How many questions ask about a location?"
+Question: "How many questions ask about a location?" — the data header says the labels describe the TYPE OF THE ANSWER and lists six labels; \
+the definitions below were written for that header, write your own from the data at hand:
 {{
   "mode": "commit",
   "operations": [
-    {{"op": "chunk", "args": {{"input": "context", "n": 20}}, "bind": "chunks"}},
-    {{"op": "map", "args": {{"prompt": "Label EVERY line below as 'location' or 'other'. Output exactly one line per input line, in order, formatted '<line number>: <label>'. No other text.", "input": "chunks"}}, "bind": "labels"}},
-    {{"op": "eval", "args": {{"code": "import re\\nfrom collections import Counter\\nLABELS = ['location', 'other']\\ndef norm(s):\\n    s = s.strip().lower().strip('*`.')\\n    return next((L for L in LABELS if s and (L.startswith(s) or s.startswith(L))), s)\\nc = Counter(norm(m.group(1)) for piece in labels for m in re.finditer(r'^\\\\s*\\\\d+\\\\s*[:.)-]\\\\s*(.+)$', piece, re.M))\\nresult = dict(c)", "inputs": ["labels"]}}, "bind": "tally"}}
+    {{
+      "op": "chunk",
+      "args": {{
+        "input": "context",
+        "n": 20
+      }},
+      "bind": "chunks"
+    }},
+    {{
+      "op": "map",
+      "args": {{
+        "prompt": "Classify EVERY line below by the TYPE OF ITS ANSWER (the header's criterion), using exactly one of these labels: 'location' = a place: city, country, river, planet (e.g. 'What is the capital of Peru ?'); 'human being' = a person or group of people (e.g. 'Who painted the Mona Lisa ?'); 'numeric value' = a number, date, count, or amount (e.g. 'How many teeth do adults have ?'); 'entity' = a thing, animal, product, or work (e.g. 'What is the fastest bird ?'); 'abbreviation' = an acronym or its expansion (e.g. 'What does NASA stand for ?'); 'description and abstract concept' = a definition, reason, or explanation (e.g. 'Why is the sky blue ?'). Output exactly one line per input line, in order, formatted '<line number>: <label>'. Use 'other' for a non-question line such as a header. No other text.",
+        "input": "chunks"
+      }},
+      "bind": "labels"
+    }},
+    {{
+      "op": "eval",
+      "args": {{
+        "code": "import re\\nfrom collections import Counter\\nLABELS = ['location', 'human being', 'numeric value', 'entity', 'abbreviation', 'description and abstract concept', 'other']\\ndef norm(s):\\n    s = s.strip().lower().strip('*`.')\\n    return next((L for L in LABELS if s and (L.startswith(s) or s.startswith(L))), s)\\nc = Counter(norm(m.group(1)) for piece in labels for m in re.finditer(r'^\\\\s*\\\\d+\\\\s*[:.)-]\\\\s*(.+)$', piece, re.M))\\nresult = {{'location': c['location'], 'all': dict(c)}}",
+        "inputs": [
+          "labels"
+        ]
+      }},
+      "bind": "tally"
+    }}
   ],
   "output": "tally"
 }}

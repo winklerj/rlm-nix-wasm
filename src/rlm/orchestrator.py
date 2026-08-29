@@ -72,6 +72,11 @@ class RLMOrchestrator:
         )
         self.parent = parent
         self.child_orchestrators: list[RLMOrchestrator] = []
+        # Completed map fan-outs, keyed by (prompt, source text): a model that
+        # re-runs the same labeling over the same text with a different chunk
+        # count would pay for a full second fan-out (the leaf cache only hits
+        # on identical pieces) for the same labels it already has.
+        self._executed_maps: dict[str, tuple[str, int, str]] = {}
 
         if config.use_nix:
             from rlm.nix.builder import NixBuilder
@@ -402,8 +407,29 @@ class RLMOrchestrator:
                         f"call labels 40-60 lines as accurately as one; chunk with "
                         f"n = line_count / 50 and map over that."
                     )
+                map_key = hashlib.sha256(
+                    (prompt + "\x00" + "\n".join(items)).encode()
+                ).hexdigest()
+                previous = self._executed_maps.get(map_key)
+                if previous is not None and previous[1] != len(items) and not op.args.get("force"):
+                    prev_bind, prev_n, prev_result = previous
+                    # Give the earlier result back under its old name so the
+                    # error handler preserves it and the model can reuse it.
+                    local_bindings.setdefault(prev_bind, prev_result)
+                    raise ValueError(
+                        f"map refused: this exact prompt was already run over "
+                        f"this same text as {prev_n} pieces and is bound to "
+                        f"{prev_bind!r}. Re-chunking (now {len(items)} pieces) "
+                        f"would repeat every sub-LLM call for the same labels; "
+                        f"reuse {prev_bind!r} and fix the step that consumes it "
+                        f"instead. If re-chunking is truly needed, add "
+                        f"\"force\": true to the map args."
+                    )
                 before_count = len(self.child_orchestrators)
                 result_value = self._parallel_map(prompt, items, depth)
+                self._executed_maps[map_key] = (
+                    op.bind or "map_result", len(items), result_value,
+                )
                 if self.trace_collector.enabled:
                     for child in self.child_orchestrators[before_count:]:
                         child_trace_ids.append(child.trace_node.trace_id)

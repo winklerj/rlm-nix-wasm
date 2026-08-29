@@ -369,6 +369,47 @@ class TestMapFanoutGuardrail:
             orch._execute_commit_plan(self._plan(), {"chunks": json.dumps(pieces)}, depth=0)
         assert direct.call_count == 2048
 
+    def test_rechunked_repeat_of_same_map_is_refused_and_previous_result_kept(self, config):
+        orch = RLMOrchestrator(config)
+        lines = [f"line {i}" for i in range(100)]
+        four = ["\n".join(lines[i:i + 25]) for i in range(0, 100, 25)]
+        ten = ["\n".join(lines[i:i + 10]) for i in range(0, 100, 10)]
+        bindings: dict[str, str] = {}
+        with patch.object(RLMOrchestrator, '_direct_call', return_value="leaf") as direct:
+            bindings["chunks"] = json.dumps(four)
+            out, _ = orch._execute_commit_plan(self._plan(), bindings, depth=0)
+            assert direct.call_count == 4
+            bindings = {"chunks": json.dumps(ten)}  # 'out' was an intermediate: gone
+            with pytest.raises(RuntimeError, match="already run over this same text as 4 pieces"):
+                orch._execute_commit_plan(self._plan(), bindings, depth=0)
+        assert direct.call_count == 4
+        assert bindings["out"] == out  # preserved for reuse by the model
+
+    def test_identical_repeat_of_same_map_is_allowed(self, config):
+        orch = RLMOrchestrator(config)
+        pieces = json.dumps(["a\nb", "c\nd"])
+        with patch.object(RLMOrchestrator, '_direct_call', return_value="leaf"):
+            orch._execute_commit_plan(self._plan(), {"chunks": pieces}, depth=0)
+            out, _ = orch._execute_commit_plan(self._plan(), {"chunks": pieces}, depth=0)
+        assert json.loads(out) == ["leaf", "leaf"]
+
+    def test_same_prompt_over_different_text_is_allowed(self, config):
+        orch = RLMOrchestrator(config)
+        with patch.object(RLMOrchestrator, '_direct_call', return_value="leaf") as direct:
+            orch._execute_commit_plan(self._plan(), {"chunks": json.dumps(["a\nb"])}, depth=0)
+            orch._execute_commit_plan(self._plan(), {"chunks": json.dumps(["a", "b", "c"])}, depth=0)
+        assert direct.call_count == 4
+
+    def test_force_allows_rechunking(self, config):
+        orch = RLMOrchestrator(config)
+        forced = CommitPlan(operations=[
+            Operation(op=OpType.MAP, args={"prompt": "label", "input": "chunks", "force": True}, bind="out"),
+        ], output="out")
+        with patch.object(RLMOrchestrator, '_direct_call', return_value="leaf") as direct:
+            orch._execute_commit_plan(self._plan(), {"chunks": json.dumps(["a\nb"])}, depth=0)
+            orch._execute_commit_plan(forced, {"chunks": json.dumps(["a", "b"])}, depth=0)
+        assert direct.call_count == 3
+
     def test_verbose_logs_full_map_prompt(self, config):
         config.verbose = True
         orch = RLMOrchestrator(config)
