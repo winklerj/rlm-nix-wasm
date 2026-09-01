@@ -1,1 +1,147 @@
-{}
+{
+ "C_codes": {
+  "acc": 0.81,
+  "labels_returned": 200,
+  "tokens": 964,
+  "secs": 21.0,
+  "per_class": {
+   "entity": {
+    "gold": 9,
+    "pred": 20,
+    "recall": 0.78
+   },
+   "location": {
+    "gold": 29,
+    "pred": 27,
+    "recall": 0.83
+   },
+   "numeric value": {
+    "gold": 29,
+    "pred": 29,
+    "recall": 0.83
+   },
+   "abbreviation": {
+    "gold": 34,
+    "pred": 30,
+    "recall": 0.74
+   },
+   "human being": {
+    "gold": 54,
+    "pred": 47,
+    "recall": 0.81
+   },
+   "description and abstract concept": {
+    "gold": 45,
+    "pred": 45,
+    "recall": 0.84
+   }
+  },
+  "confusions": [
+   [
+    "human being",
+    "entity",
+    5
+   ],
+   [
+    "abbreviation",
+    "description and abstract concept",
+    4
+   ],
+   [
+    "description and abstract concept",
+    "entity",
+    4
+   ],
+   [
+    "location",
+    "entity",
+    2
+   ],
+   [
+    "abbreviation",
+    "human being",
+    2
+   ],
+   [
+    "human being",
+    "numeric value",
+    2
+   ],
+   [
+    "numeric value",
+    "abbreviation",
+    2
+   ]
+  ]
+ },
+ "D_codes_defs": {
+  "acc": 0.795,
+  "labels_returned": 197,
+  "tokens": 949,
+  "secs": 21.8,
+  "per_class": {
+   "entity": {
+    "gold": 9,
+    "pred": 22,
+    "recall": 0.89
+   },
+   "location": {
+    "gold": 29,
+    "pred": 25,
+    "recall": 0.79
+   },
+   "numeric value": {
+    "gold": 29,
+    "pred": 29,
+    "recall": 0.9
+   },
+   "abbreviation": {
+    "gold": 34,
+    "pred": 26,
+    "recall": 0.62
+   },
+   "human being": {
+    "gold": 54,
+    "pred": 49,
+    "recall": 0.83
+   },
+   "description and abstract concept": {
+    "gold": 45,
+    "pred": 46,
+    "recall": 0.8
+   }
+  },
+  "confusions": [
+   [
+    "abbreviation",
+    "description and abstract concept",
+    9
+   ],
+   [
+    "description and abstract concept",
+    "entity",
+    5
+   ],
+   [
+    "human being",
+    "entity",
+    4
+   ],
+   [
+    "location",
+    "entity",
+    4
+   ],
+   [
+    "human being",
+    "abbreviation",
+    3
+   ],
+   [
+    "description and abstract concept",
+    "human being",
+    2
+   ]
+  ]
+ }
+}

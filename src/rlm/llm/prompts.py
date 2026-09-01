@@ -81,6 +81,17 @@ allowed label it is a prefix of (sub-LLMs shorten "description and abstract conc
 labels every item, tally X and Y from that same output, then compare. Answer \
 "same frequency as" when the two tallies are equal or within 3% of each other — the data \
 is constructed so that some label pairs have exactly equal counts.
+5. RE-CHECK PASS for close calls: single-pass labels leak systematically into the broadest, \
+vaguest labels (a description-like or entity-like label absorbs items from more specific \
+ones), which skews close tallies. When the compared tallies are within ~10% of each other, \
+correct before answering: with `eval`, pair each map output piece with its input piece \
+(they line up 1:1; parse '<n>: <label>' and take line n of the input piece) and collect \
+the input lines currently labeled with either compared label or a broad absorbing label \
+into one newline-joined string. `chunk` that, `map` it with the SAME label definitions \
+prefixed by "Each line was provisionally labeled; re-check each against ALL the \
+definitions and correct it if needed", then retally: replace the re-checked lines' old \
+labels with the corrected ones. This measurably removes most of the leakage for ~30% \
+extra sub-calls.
 
 For classification tasks (e.g., "what is the most common label"), use the same pattern: \
 chunk into pieces of 40-60 items, `map` with a labeling prompt that returns one line per \

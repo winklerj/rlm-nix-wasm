@@ -99,6 +99,16 @@ def test_counting_guidance_defines_labels_and_normalises() -> None:
     assert "Normalise each output label" in SYSTEM_PROMPT
 
 
+def test_counting_guidance_recheck_pass_for_close_tallies() -> None:
+    # Calibrated on Qwen3.8: one labeling pass tops out at 0.905 accuracy with
+    # errors pooling in the vaguest labels; re-checking just those lines lifts
+    # it to 0.930. The guidance must teach the re-check for close comparisons.
+    from rlm.llm.prompts import SYSTEM_PROMPT
+    assert "RE-CHECK PASS" in SYSTEM_PROMPT
+    assert "within ~10%" in SYSTEM_PROMPT
+    assert "re-check each against ALL" in SYSTEM_PROMPT
+
+
 def test_counting_example_map_prompt_uses_full_label_set_with_definitions() -> None:
     # A binary "X or other" map prompt collapses on this model (recall ~0.02) and
     # roots copy the example over the prose, so the example must show the full
