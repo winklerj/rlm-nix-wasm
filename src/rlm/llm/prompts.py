@@ -77,25 +77,22 @@ criteria. A map prompt that merely names the labels, or classifies by topic inst
 stated criterion, drifts toward the vaguest label (e.g. over-assigning "description"). \
 Sub-LLMs are accurate at labeling items but unreliable at counting them, so never ask a \
 sub-LLM for a count — label, then count the labels yourself.
-3. Tally with a single `eval` over the map output (it arrives as a list of strings): \
-`collections.Counter` of the label on each output line. Normalise each output label to the \
-allowed label it is a prefix of (sub-LLMs shorten "description and abstract concept" to \
-"description") before counting, as in the example below. Only fall back to \
-`combine(inputs, "sum")` when each map result is a bare integer.
+3. Tally with `calibrated_tally(items=<chunk binding>, labels=<map binding>, \
+prompt=<the same labeling prompt>, label_set=[...])`, as in the example below. It counts the \
+labels (normalising shortened forms to `label_set`), re-checks a sample to correct the count \
+for classifier noise, and reports a stderr per label. Do NOT hand-tally with `eval` — a raw \
+Counter tally is measurably biased; use `eval` only for arithmetic on the corrected counts.
 4. For "is X more/less common than, or the same frequency as Y" questions: run ONE map that \
 labels every item, tally X and Y from that same output, then compare. Answer \
 "same frequency as" when the corrected tallies are statistically tied (see step 5); some \
 label pairs in constructed data have exactly equal counts.
-5. Counting a noisy classifier's output is biased, so for any count that feeds a comparison \
-or an exact answer, tally with `calibrated_tally` instead of `eval`: it re-checks a sampled \
-subset one item at a time, corrects the tally for the measured misclassification, and \
-reports a stderr per label. Answer "same frequency as" when the corrected counts differ by \
-less than ~2x their combined stderr; otherwise compare the corrected counts. Use the plain \
-`eval` Counter tally only for rough exploration.
+5. Decide from the corrected counts and their stderr: answer "same frequency as" when the \
+two corrected counts differ by less than ~2x their combined stderr; otherwise compare the \
+corrected counts. For exact "how many" answers, give the corrected count.
 
 For classification tasks (e.g., "what is the most common label"), use the same pattern: \
 chunk into pieces of 40-60 items, `map` with a labeling prompt that returns one line per \
-item, then tally in `eval`.
+item, then `calibrated_tally`, and answer from the corrected counts.
 
 BATCH YOUR SUB-CALLS: a sub-LLM call handling 50 items costs barely more than one handling 5. \
 Classify 40-60 items per call. Do NOT issue one `rlm_call` or one map piece per line — \
