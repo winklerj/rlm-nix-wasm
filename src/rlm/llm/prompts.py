@@ -19,11 +19,10 @@ directly. Instead, you use operations to examine and process it. This is an iter
 - `split(input, delimiter)` — split on a delimiter string
 - `rlm_call(query, context)` — recursive call to a sub-LLM for semantic analysis (COMMIT only)
 - `map(prompt, input)` — apply sub-LLM to each element in parallel (COMMIT only)
-- `calibrated_tally(items, labels, prompt, label_set?)` — count the labels a `map` produced, \
-corrected for classifier noise: re-checks a sample one item at a time and adjusts the tally, \
-reporting raw and corrected counts with a stderr per label (COMMIT only). `items` and `labels` \
-name the bindings of the map's input and output; `prompt` is the same labeling prompt; \
-`label_set` optionally lists the allowed labels for normalisation
+- `calibrated_tally(items, labels, prompt, label_set?)` — diagnostic tally of a `map`'s labels \
+that re-checks a sample one item at a time and reports raw counts, noise-corrected counts and \
+a stderr per label (COMMIT only). Use only when explicitly asked for error estimates; the \
+corrected counts are noisier than the raw tally at the default sample size
 - `combine(inputs, strategy)` — merge results ("concat", "sum", "vote", or a custom prompt string)
 {eval_ops}
 String operations (slice, grep, count, chunk, split) find WHERE things are; \
@@ -77,22 +76,19 @@ criteria. A map prompt that merely names the labels, or classifies by topic inst
 stated criterion, drifts toward the vaguest label (e.g. over-assigning "description"). \
 Sub-LLMs are accurate at labeling items but unreliable at counting them, so never ask a \
 sub-LLM for a count — label, then count the labels yourself.
-3. Tally with `calibrated_tally(items=<chunk binding>, labels=<map binding>, \
-prompt=<the same labeling prompt>, label_set=[...])`, as in the example below. It counts the \
-labels (normalising shortened forms to `label_set`), re-checks a sample to correct the count \
-for classifier noise, and reports a stderr per label. Do NOT hand-tally with `eval` — a raw \
-Counter tally is measurably biased; use `eval` only for arithmetic on the corrected counts.
+3. Tally with a single `eval` over the map output (it arrives as a list of strings): \
+`collections.Counter` of the label on each output line. Normalise each output label to the \
+allowed label it is a prefix of (sub-LLMs shorten "description and abstract concept" to \
+"description") before counting, as in the example below. Only fall back to \
+`combine(inputs, "sum")` when each map result is a bare integer.
 4. For "is X more/less common than, or the same frequency as Y" questions: run ONE map that \
 labels every item, tally X and Y from that same output, then compare. Answer \
-"same frequency as" when the corrected tallies are statistically tied (see step 5); some \
-label pairs in constructed data have exactly equal counts.
-5. Decide from the corrected counts and their stderr: answer "same frequency as" when the \
-two corrected counts differ by less than ~2x their combined stderr; otherwise compare the \
-corrected counts. For exact "how many" answers, give the corrected count.
+"same frequency as" when the two tallies are equal or within 3% of each other — the data \
+is constructed so that some label pairs have exactly equal counts.
 
 For classification tasks (e.g., "what is the most common label"), use the same pattern: \
 chunk into pieces of 40-60 items, `map` with a labeling prompt that returns one line per \
-item, then `calibrated_tally`, and answer from the corrected counts.
+item, then tally in `eval`.
 
 BATCH YOUR SUB-CALLS: a sub-LLM call handling 50 items costs barely more than one handling 5. \
 Classify 40-60 items per call. Do NOT issue one `rlm_call` or one map piece per line — \
@@ -125,12 +121,12 @@ the definitions below were written for that header, write your own from the data
       "bind": "labels"
     }},
     {{
-      "op": "calibrated_tally",
+      "op": "eval",
       "args": {{
-        "items": "chunks",
-        "labels": "labels",
-        "prompt": "<the same classification prompt as the map above>",
-        "label_set": ["location", "human being", "numeric value", "entity", "abbreviation", "description and abstract concept", "other"]
+        "code": "import re\\nfrom collections import Counter\\nLABELS = ['location', 'human being', 'numeric value', 'entity', 'abbreviation', 'description and abstract concept', 'other']\\ndef norm(s):\\n    s = s.strip().lower().strip('*`.')\\n    return next((L for L in LABELS if s and (L.startswith(s) or s.startswith(L))), s)\\nc = Counter(norm(m.group(1)) for piece in labels for m in re.finditer(r'^\\\\s*\\\\d+\\\\s*[:.)-]\\\\s*(.+)$', piece, re.M))\\nresult = {{'location': c['location'], 'all': dict(c)}}",
+        "inputs": [
+          "labels"
+        ]
       }},
       "bind": "tally"
     }}
