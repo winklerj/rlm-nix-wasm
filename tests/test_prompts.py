@@ -56,40 +56,22 @@ def test_counting_guidance_labels_items_and_tallies_in_eval() -> None:
     assert "Counter" in SYSTEM_PROMPT
     # Comparison questions: one map for both labels, explicit tie rule.
     assert "same frequency as" in SYSTEM_PROMPT
-    assert "within 3%" in SYSTEM_PROMPT
+    assert "statistically tied" in SYSTEM_PROMPT
 
 
-def test_counting_example_is_valid_json_and_tallies() -> None:
+def test_counting_example_is_valid_json_and_uses_calibrated_tally() -> None:
     import json
-    import re
-    from collections import Counter
 
     from rlm.llm.prompts import SYSTEM_PROMPT
     rendered = SYSTEM_PROMPT.format(eval_ops="", eval_approach="", query="q")
     example = rendered[rendered.index("## Example: Counting pattern"):rendered.index("## Rules")]
     plan = json.loads(example[example.index("{"):].strip())
     ops = {op["op"]: op for op in plan["operations"]}
-    code = ops["eval"]["args"]["code"]
-    labels = ["1: location\n2: other\n3: Location", "1: other\n2: location"]
-    ns: dict[str, object] = {"labels": labels, "re": re, "Counter": Counter}
-    exec(code, ns)  # noqa: S102 — our own example
-    assert ns["result"] == {"location": 3, "all": {"location": 3, "other": 2}}
-
-
-def test_counting_example_normalises_shortened_labels() -> None:
-    import json
-    import re
-    from collections import Counter
-
-    from rlm.llm.prompts import SYSTEM_PROMPT
-    rendered = SYSTEM_PROMPT.format(eval_ops="", eval_approach="", query="q")
-    example = rendered[rendered.index("## Example: Counting pattern"):rendered.index("## Rules")]
-    plan = json.loads(example[example.index("{"):].strip())
-    code = {op["op"]: op for op in plan["operations"]}["eval"]["args"]["code"]
-    labels = ["1: loc\n2: **other**\n3: Location.", "1: other\n2: skip"]
-    ns: dict[str, object] = {"labels": labels, "re": re, "Counter": Counter}
-    exec(code, ns)  # noqa: S102 — our own example
-    assert ns["result"] == {"location": 2, "all": {"location": 2, "other": 2, "skip": 1}}
+    tally = ops["calibrated_tally"]["args"]
+    assert tally["items"] == "chunks"
+    assert tally["labels"] == "labels"
+    assert "label_set" in tally
+    assert plan["output"] == "tally"
 
 
 def test_counting_guidance_defines_labels_and_normalises() -> None:
@@ -99,14 +81,13 @@ def test_counting_guidance_defines_labels_and_normalises() -> None:
     assert "Normalise each output label" in SYSTEM_PROMPT
 
 
-def test_counting_guidance_recheck_pass_for_close_tallies() -> None:
-    # Calibrated on Qwen3.8: one labeling pass tops out at 0.905 accuracy with
-    # errors pooling in the vaguest labels; re-checking just those lines lifts
-    # it to 0.930. The guidance must teach the re-check for close comparisons.
+def test_counting_guidance_teaches_calibrated_tally() -> None:
+    # Prose-only re-check guidance was ignored by the root model (2/50 tasks
+    # ran a second map); the correction now lives in the harness op and the
+    # guidance + example must steer counting workflows to it.
     from rlm.llm.prompts import SYSTEM_PROMPT
-    assert "RE-CHECK PASS" in SYSTEM_PROMPT
-    assert "within ~10%" in SYSTEM_PROMPT
-    assert "re-check each against ALL" in SYSTEM_PROMPT
+    assert "calibrated_tally" in SYSTEM_PROMPT
+    assert "2x their combined stderr" in SYSTEM_PROMPT
 
 
 def test_counting_example_map_prompt_uses_full_label_set_with_definitions() -> None:

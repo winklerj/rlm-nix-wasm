@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
+import random
+import re
 import logging
 import time
 from collections.abc import Callable
@@ -434,6 +437,9 @@ class RLMOrchestrator:
                     for child in self.child_orchestrators[before_count:]:
                         child_trace_ids.append(child.trace_node.trace_id)
 
+            elif op.op == OpType.CALIBRATED_TALLY:
+                result_value = self._calibrated_tally(op, local_bindings)
+
             else:
                 result = self.evaluator.execute(op, local_bindings)
                 result_value = result.value
@@ -511,6 +517,93 @@ class RLMOrchestrator:
             if self.trace_collector.enabled:
                 self.trace_node.children.append(sub_orchestrator.trace_node)
             return result, sub_orchestrator
+
+    _LABEL_LINE = re.compile(r"^\s*(\d+)\s*[:.)-]\s*(.+?)\s*$", re.M)
+
+    def _calibrated_tally(self, op: Operation, local_bindings: dict[str, str]) -> str:
+        """Tally map labels, corrected for measured misclassification.
+
+        Classify-and-count is biased when the classifier is noisy (Forman 2005;
+        Rogan & Gladen 1977): with a few percent of per-class leakage, close
+        tallies compare wrong and exact counts drift. This op re-labels a
+        stratified sample of items one at a time (the same model is measurably
+        more accurate on a single item than on a 50-line batch), estimates
+        P(true label | assigned label) per stratum, and returns both the raw
+        and the adjusted tallies with a standard error per label. It is task-
+        agnostic: labels are whatever strings the map produced.
+        """
+        prompt = str(op.args["prompt"])
+        items = parse_list_value(local_bindings[str(op.args["items"])])
+        labeled = parse_list_value(local_bindings[str(op.args["labels"])])
+        label_set = [str(x) for x in op.args.get("label_set") or []]
+
+        def norm(raw: str) -> str:
+            lab = raw.strip().lower().strip("*`.'\" ")
+            if label_set:
+                for full in label_set:
+                    f = full.lower()
+                    if lab and (f.startswith(lab) or lab.startswith(f)):
+                        return f
+            return lab
+
+        by_label: dict[str, list[str]] = {}
+        for piece, lab_piece in zip(items, labeled):
+            lines = piece.split("\n")
+            for m in self._LABEL_LINE.finditer(lab_piece):
+                n = int(m.group(1))
+                if 1 <= n <= len(lines):
+                    by_label.setdefault(norm(m.group(2)), []).append(lines[n - 1])
+        if not by_label:
+            raise ValueError(
+                "calibrated_tally found no '<line number>: <label>' lines in "
+                f"{op.args['labels']!r}; it needs the map output format."
+            )
+        raw_counts = {lab: len(group) for lab, group in by_label.items()}
+
+        rng = random.Random(0)
+        sample: list[tuple[str, str]] = []  # (assigned label, item line)
+        for lab, group in sorted(by_label.items()):
+            k = min(self.config.tally_sample_per_label, len(group))
+            sample.extend((lab, line) for line in rng.sample(group, k))
+
+        def relabel(line: str) -> str:
+            answer = self._direct_call(
+                f"{prompt}\n\nThere is exactly ONE item to classify. "
+                f"Answer with the label only, no line number.",
+                line,
+            )
+            return norm(answer.splitlines()[-1] if answer.strip() else "")
+
+        with ThreadPoolExecutor(max_workers=self.config.max_parallel_jobs) as pool:
+            rechecked = list(pool.map(relabel, [line for _, line in sample]))
+
+        # Per-stratum posterior P(true=j | assigned=i) from the sample.
+        stratum: dict[str, dict[str, int]] = {}
+        for (assigned, _), true_lab in zip(sample, rechecked):
+            stratum.setdefault(assigned, {}).setdefault(true_lab, 0)
+            stratum[assigned][true_lab] += 1
+        corrected: dict[str, float] = {}
+        variance: dict[str, float] = {}
+        for assigned, n_assigned in raw_counts.items():
+            rows = stratum.get(assigned, {assigned: 1})
+            k = sum(rows.values())
+            for true_lab, hits in rows.items():
+                p = hits / k
+                corrected[true_lab] = corrected.get(true_lab, 0.0) + n_assigned * p
+                variance[true_lab] = (
+                    variance.get(true_lab, 0.0) + n_assigned ** 2 * p * (1 - p) / k
+                )
+        result = {
+            "raw": raw_counts,
+            "corrected": {lab: round(v) for lab, v in sorted(corrected.items())},
+            "stderr": {lab: round(math.sqrt(variance[lab]), 1) for lab in sorted(corrected)},
+            "note": (
+                "corrected adjusts the raw tally for misclassification measured "
+                "on a re-checked sample; treat labels whose corrected counts "
+                "differ by less than ~2x their combined stderr as tied"
+            ),
+        }
+        return json.dumps(result)
 
     def _parallel_map(self, prompt: str, items: list[str], depth: int) -> str:
         """Execute map operation with parallel recursive calls."""

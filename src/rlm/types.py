@@ -27,6 +27,7 @@ class OpType(str, Enum):
     SPLIT = "split"
     RLM_CALL = "rlm_call"
     MAP = "map"
+    CALIBRATED_TALLY = "calibrated_tally"
     COMBINE = "combine"
     EVAL = "eval"
 
@@ -121,6 +122,7 @@ class RLMConfig(BaseModel):
     # ~2,000 pieces, so the absolute cap must stay well above that.
     max_map_items: int = 4096
     min_map_piece_lines: int = 5
+    tally_sample_per_label: int = 20
     temperature: float = 1.0
     max_result_chars: int = 8000
     cache_dir: Path = Path.home() / ".cache" / "rlm-nix-wasm"

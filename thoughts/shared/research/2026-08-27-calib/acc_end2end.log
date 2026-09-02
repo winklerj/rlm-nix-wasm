@@ -1,0 +1,14 @@
+K=20: total-abs-error raw=139 corrected=113
+   entity                             gold= 35 raw= 85 corrected=  89.8
+   location                           gold=186 raw=161 corrected= 165.8
+   numeric value                      gold=163 raw=161 corrected= 164.6
+   abbreviation                       gold=163 raw=144 corrected= 151.9
+   human being                        gold=246 raw=220 corrected= 222.4
+   description and abstract concept   gold=207 raw=224 corrected= 205.4
+K=60: total-abs-error raw=139 corrected=108
+   entity                             gold= 35 raw= 85 corrected=  88.9
+   location                           gold=186 raw=161 corrected= 172.8
+   numeric value                      gold=163 raw=161 corrected= 159.9
+   abbreviation                       gold=163 raw=144 corrected= 154.1
+   human being                        gold=246 raw=220 corrected= 224.6
+   description and abstract concept   gold=207 raw=224 corrected= 199.7

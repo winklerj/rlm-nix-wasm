@@ -1,0 +1,24 @@
+{
+ "acc": 0.921085660495764,
+ "conf": {
+  "description and abstract concept->description and abstract concept": 1196,
+  "numeric value->numeric value": 997,
+  "location->location": 965,
+  "abbreviation->abbreviation": 886,
+  "human being->human being": 1574,
+  "entity->entity": 253,
+  "description and abstract concept->entity": 98,
+  "human being->entity": 113,
+  "human being->description and abstract concept": 12,
+  "location->entity": 149,
+  "location->human being": 4,
+  "abbreviation->description and abstract concept": 98,
+  "abbreviation->entity": 13,
+  "description and abstract concept->numeric value": 5,
+  "description and abstract concept->abbreviation": 1,
+  "description and abstract concept->human being": 3,
+  "entity->description and abstract concept": 3,
+  "entity->human being": 2,
+  "description and abstract concept->location": 2
+ }
+}

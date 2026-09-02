@@ -19,6 +19,11 @@ directly. Instead, you use operations to examine and process it. This is an iter
 - `split(input, delimiter)` — split on a delimiter string
 - `rlm_call(query, context)` — recursive call to a sub-LLM for semantic analysis (COMMIT only)
 - `map(prompt, input)` — apply sub-LLM to each element in parallel (COMMIT only)
+- `calibrated_tally(items, labels, prompt, label_set?)` — count the labels a `map` produced, \
+corrected for classifier noise: re-checks a sample one item at a time and adjusts the tally, \
+reporting raw and corrected counts with a stderr per label (COMMIT only). `items` and `labels` \
+name the bindings of the map's input and output; `prompt` is the same labeling prompt; \
+`label_set` optionally lists the allowed labels for normalisation
 - `combine(inputs, strategy)` — merge results ("concat", "sum", "vote", or a custom prompt string)
 {eval_ops}
 String operations (slice, grep, count, chunk, split) find WHERE things are; \
@@ -79,19 +84,14 @@ allowed label it is a prefix of (sub-LLMs shorten "description and abstract conc
 `combine(inputs, "sum")` when each map result is a bare integer.
 4. For "is X more/less common than, or the same frequency as Y" questions: run ONE map that \
 labels every item, tally X and Y from that same output, then compare. Answer \
-"same frequency as" when the two tallies are equal or within 3% of each other — the data \
-is constructed so that some label pairs have exactly equal counts.
-5. RE-CHECK PASS for close calls: single-pass labels leak systematically into the broadest, \
-vaguest labels (a description-like or entity-like label absorbs items from more specific \
-ones), which skews close tallies. When the compared tallies are within ~10% of each other, \
-correct before answering: with `eval`, pair each map output piece with its input piece \
-(they line up 1:1; parse '<n>: <label>' and take line n of the input piece) and collect \
-the input lines currently labeled with either compared label or a broad absorbing label \
-into one newline-joined string. `chunk` that, `map` it with the SAME label definitions \
-prefixed by "Each line was provisionally labeled; re-check each against ALL the \
-definitions and correct it if needed", then retally: replace the re-checked lines' old \
-labels with the corrected ones. This measurably removes most of the leakage for ~30% \
-extra sub-calls.
+"same frequency as" when the corrected tallies are statistically tied (see step 5); some \
+label pairs in constructed data have exactly equal counts.
+5. Counting a noisy classifier's output is biased, so for any count that feeds a comparison \
+or an exact answer, tally with `calibrated_tally` instead of `eval`: it re-checks a sampled \
+subset one item at a time, corrects the tally for the measured misclassification, and \
+reports a stderr per label. Answer "same frequency as" when the corrected counts differ by \
+less than ~2x their combined stderr; otherwise compare the corrected counts. Use the plain \
+`eval` Counter tally only for rough exploration.
 
 For classification tasks (e.g., "what is the most common label"), use the same pattern: \
 chunk into pieces of 40-60 items, `map` with a labeling prompt that returns one line per \
@@ -128,12 +128,12 @@ the definitions below were written for that header, write your own from the data
       "bind": "labels"
     }},
     {{
-      "op": "eval",
+      "op": "calibrated_tally",
       "args": {{
-        "code": "import re\\nfrom collections import Counter\\nLABELS = ['location', 'human being', 'numeric value', 'entity', 'abbreviation', 'description and abstract concept', 'other']\\ndef norm(s):\\n    s = s.strip().lower().strip('*`.')\\n    return next((L for L in LABELS if s and (L.startswith(s) or s.startswith(L))), s)\\nc = Counter(norm(m.group(1)) for piece in labels for m in re.finditer(r'^\\\\s*\\\\d+\\\\s*[:.)-]\\\\s*(.+)$', piece, re.M))\\nresult = {{'location': c['location'], 'all': dict(c)}}",
-        "inputs": [
-          "labels"
-        ]
+        "items": "chunks",
+        "labels": "labels",
+        "prompt": "<the same classification prompt as the map above>",
+        "label_set": ["location", "human being", "numeric value", "entity", "abbreviation", "description and abstract concept", "other"]
       }},
       "bind": "tally"
     }}
@@ -146,7 +146,7 @@ the definitions below were written for that header, write your own from the data
 - Your ENTIRE response must be a single raw JSON object. No prose, no markdown, no code fences.
 - In EXPLORE mode, emit exactly one operation per response.
 - In COMMIT mode, list operations in dependency order.
-- `rlm_call` and `map` are only available in COMMIT mode.
+- `rlm_call`, `map` and `calibrated_tally` are only available in COMMIT mode.
 
 Query: {query}
 '''

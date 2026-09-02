@@ -422,3 +422,89 @@ class TestMapFanoutGuardrail:
                 orch._execute_commit_plan(plan, {"chunks": json.dumps(["a", "b"])}, depth=0)
         logged = "\n".join(str(c.args[0]) for c in printed.call_args_list)
         assert long_prompt in logged
+
+
+class TestCalibratedTally:
+    """calibrated_tally: adjusted classify-and-count over a map's labels."""
+
+    @staticmethod
+    def _plan(label_set=None):
+        args = {"items": "chunks", "labels": "labels", "prompt": "Classify each line."}
+        if label_set is not None:
+            args["label_set"] = label_set
+        return CommitPlan(operations=[
+            Operation(op=OpType.CALIBRATED_TALLY, args=args, bind="tally"),
+        ], output="tally")
+
+    @staticmethod
+    def _bindings():
+        # 60 items over 2 pieces. True labels are encoded in the line text; the
+        # bulk map labeled every 'cat' line 'cat', but mislabeled 10 of the 30
+        # 'dog' lines as 'cat' (the vague-label absorption pattern).
+        lines1 = [f"cat item {i}" for i in range(20)] + [f"dog item {i}" for i in range(10)]
+        lines2 = [f"cat item {i}" for i in range(20, 30)] + [f"dog item {i}" for i in range(10, 30)]
+        lab1 = "\n".join(
+            [f"{n}: cat" for n in range(1, 21)]
+            + [f"{n}: cat" for n in range(21, 26)]      # 5 dogs mislabeled
+            + [f"{n}: dog" for n in range(26, 31)]
+        )
+        lab2 = "\n".join(
+            [f"{n}: cat" for n in range(1, 11)]
+            + [f"{n}: cat" for n in range(11, 16)]      # 5 more dogs mislabeled
+            + [f"{n}: dog" for n in range(16, 31)]
+        )
+        return {
+            "chunks": json.dumps(["\n".join(lines1), "\n".join(lines2)]),
+            "labels": json.dumps([lab1, lab2]),
+        }
+
+    def test_corrects_biased_tally_toward_truth(self, config):
+        config.tally_sample_per_label = 20
+        orch = RLMOrchestrator(config)
+        with patch.object(
+            RLMOrchestrator, '_direct_call',
+            side_effect=lambda self_q, line: "dog" if "dog" in line else "cat",
+        ) as careful:
+            out, _ = orch._execute_commit_plan(self._plan(), self._bindings(), depth=0)
+        tally = json.loads(out)
+        assert tally["raw"] == {"cat": 40, "dog": 20}
+        # Truth is 30/30; the correction must move substantially toward it.
+        assert 26 <= tally["corrected"]["cat"] <= 34
+        assert 26 <= tally["corrected"]["dog"] <= 34
+        assert set(tally["stderr"]) == set(tally["corrected"])
+        # Stratified sampling: at most sample_per_label per assigned label.
+        assert careful.call_count <= 40
+
+    def test_label_set_normalises_shortened_labels(self, config):
+        orch = RLMOrchestrator(config)
+        bindings = {
+            "chunks": json.dumps(["a\nb\nc"]),
+            "labels": json.dumps(["1: desc\n2: Description and abstract concept.\n3: entity"]),
+        }
+        with patch.object(RLMOrchestrator, '_direct_call', return_value="entity"):
+            out, _ = orch._execute_commit_plan(
+                self._plan(label_set=["description and abstract concept", "entity"]),
+                bindings, depth=0)
+        raw = json.loads(out)["raw"]
+        assert raw == {"description and abstract concept": 2, "entity": 1}
+
+    def test_refuses_input_without_label_lines(self, config):
+        orch = RLMOrchestrator(config)
+        bindings = {"chunks": json.dumps(["a"]), "labels": json.dumps(["no labels here"])}
+        with patch.object(RLMOrchestrator, '_direct_call', return_value="x") as careful:
+            with pytest.raises(RuntimeError, match="needs the map output format"):
+                orch._execute_commit_plan(self._plan(), bindings, depth=0)
+        assert careful.call_count == 0
+
+    def test_deterministic_sampling(self, config):
+        config.tally_sample_per_label = 5
+        results = []
+        for _ in range(2):
+            orch = RLMOrchestrator(config)
+            with patch.object(
+                RLMOrchestrator, '_direct_call',
+                side_effect=lambda self_q, line: "dog" if "dog" in line else "cat",
+            ):
+                out, _ = orch._execute_commit_plan(self._plan(), self._bindings(), depth=0)
+            results.append(out)
+        assert results[0] == results[1]
