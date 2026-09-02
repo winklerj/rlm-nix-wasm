@@ -107,3 +107,13 @@ def test_counting_example_map_prompt_uses_full_label_set_with_definitions() -> N
         assert f"'{label}' =" in prompt
     assert prompt.count("e.g.") >= 6
     assert "'location' or 'other'" not in prompt
+
+
+def test_commit_tool_schema_allows_calibrated_tally() -> None:
+    # The llama-server grammar-constrains tool calls to this enum: an op
+    # missing here cannot be emitted at all, whatever the prompt teaches.
+    from rlm.llm.client import LLMClient
+    from rlm.types import OpType
+    commit = next(t for t in LLMClient.TOOLS if t["function"]["name"] == "rlm_commit")
+    ops = commit["function"]["parameters"]["properties"]["operations"]["items"]["properties"]["op"]["enum"]
+    assert OpType.CALIBRATED_TALLY.value in ops

@@ -85,7 +85,7 @@ class LLMClient:
                             "items": {
                                 "type": "object",
                                 "properties": {
-                                    "op": {"type": "string", "enum": ["slice","grep","count","chunk","split","eval","combine","rlm_call","map"]},
+                                    "op": {"type": "string", "enum": ["slice","grep","count","chunk","split","eval","combine","rlm_call","map","calibrated_tally"]},
                                     "args": {"type": "object"},
                                     "bind": {"type": "string"}
                                 },
