@@ -1,0 +1,9 @@
+order1/50                    total-abs-error= 141.0 acc=0.843  entit=85 locat=160 numer=161 abbre=145 human=220 descr=226
+order2/50                    total-abs-error= 128.0 acc=0.861  entit=74 locat=168 numer=161 abbre=141 human=221 descr=229
+order3/50                    total-abs-error= 138.0 acc=0.841  entit=83 locat=165 numer=159 abbre=145 human=217 descr=225
+order1/20                    total-abs-error= 126.0 acc=0.907  entit=83 locat=165 numer=164 abbre=146 human=220 descr=220
+order1/10                    total-abs-error= 158.0 acc=0.909  entit=90 locat=162 numer=165 abbre=139 human=215 descr=229
+gold                        entit=35 locat=186 numer=163 abbre=163 human=246 descr=207
+avg(order1,order2)           total-abs-error= 134.5  entit=80 locat=164 numer=161 abbre=143 human=220 descr=228
+avg(order1,2,3)              total-abs-error= 135.7  entit=81 locat=164 numer=160 abbre=144 human=219 descr=227
+majority(3 orders)           total-abs-error= 134.0 acc=0.844  entit=82 locat=166 numer=160 abbre=144 human=218 descr=224
